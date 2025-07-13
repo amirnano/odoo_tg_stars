@@ -304,6 +304,12 @@ class WebhookController(http.Controller):
                     )
                     return Response(status=200)
             
+            # اگر هیچ یک از موارد بالا نبود، پیام نامعتبر است
+            service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
+            service.send_message(
+                chat_id=chat_id,
+                message='درخواست شما نامعتبر است.'
+            )
             return Response(status=200)
 
         except Exception as e:
@@ -402,6 +408,15 @@ class WebhookController(http.Controller):
         if participant:
             _logger.info(f"Participant {participant.id} found for payment.")
             current_step = payment.step_id
+
+            # Edit the original invoice message
+            service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
+            service.edit_message_text(
+                chat_id=participant.chat_id,
+                message_id=payment.message_id,
+                text=f"✅ پرداخت شما برای {current_step.name} با موفقیت انجام شد.",
+                reply_markup=None
+            )
 
             steps_to_send = request.env['telegram.step']
             for step in participant.sudo().campaign_id.step_ids.filtered(lambda s: s.sequence > current_step.sequence).sorted(lambda s: s.sequence):

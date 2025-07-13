@@ -681,6 +681,7 @@ class TelegramService(models.AbstractModel):
                 error_msg = response_data.get('description', 'خطای ناشناخته')
                 raise UserError(f"خطا در ارسال صورت‌حساب: {error_msg}")
             
+            payment.write({'message_id': response_data['result']['message_id']})
             return response_data['result']
         
         except Exception as e:
