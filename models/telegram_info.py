@@ -32,6 +32,7 @@ class TelegramInfo(models.Model):
     def process_start_parameter(self, start_parameter):
         """پردازش پارامتر شروع و شروع کمپین"""
         _logger = logging.getLogger(__name__)
+        _logger.info(f"Processing start parameter: {start_parameter}")
         
         try:
             # جستجوی کمپین فعال
@@ -42,43 +43,32 @@ class TelegramInfo(models.Model):
             ], limit=1)
             
             if not campaign:
+                _logger.warning(f"Campaign not found for start parameter: {start_parameter}")
                 return False
 
+            _logger.info(f"Campaign found: {campaign.name}")
+
             # یافتن یا ایجاد شرکت‌کننده
-            participant = self.env['telegram.campaign.participant'].sudo().search([
-                ('telegram_info_id', '=', self.id),
-                ('campaign_id', '=', campaign.id)
-            ], limit=1)
+            participant, created = self.env['telegram.campaign.participant'].sudo().find_or_create(self, campaign)
 
-            if participant:
-                # اگر کاربر قبلاً در کمپین شرکت کرده، از مرحله فعلی ادامه می‌دهیم
-                participant.write({'last_start_date': fields.Datetime.now()})
-                first_step = participant.current_step_id or campaign.step_ids.sorted(lambda s: s.sequence)[:1]
-                if first_step:
-                    return participant.process_step(first_step)
-                return True
+            if created:
+                _logger.info(f"Participant created with ID: {participant.id}")
             else:
-                # ثبت شرکت‌کننده جدید در کمپین
-                participant = self.env['telegram.campaign.participant'].sudo().create({
-                    'campaign_id': campaign.id,
-                    'telegram_info_id': self.id,
-                    'join_date': fields.Datetime.now(),
-                    'last_start_date': fields.Datetime.now(),
-                    'partner_id': self.partner_id.id,
-                    'telegram_id': self.telegram_id,
-                    'telegram_username': self.telegram_username,
-                    'chat_id': self.chat_id,
-                    'bot_id': self.bot_id.id
-                })
-            
-            _logger.info(f'کاربر {self.chat_id} به کمپین {campaign.name} پیوست')
+                _logger.info(f"Participant found: {participant.id}")
+                participant.write({'last_start_date': fields.Datetime.now()})
 
-            # شروع از اولین مرحله
-            first_step = campaign.step_ids.sorted(lambda s: s.sequence)[:1]
-            if first_step:
-                participant.write({'current_step_id': first_step.id})
-                # اجرای مرحله اول
-                return participant.process_step(first_step)
+            # ارسال پیام های خوانده نشده
+            steps_to_send = self.env['telegram.step']
+            for step in campaign.step_ids.sorted(lambda s: s.sequence):
+                if step.message_type in ['text', 'forward']:
+                    steps_to_send |= step
+                else:
+                    if not participant.is_step_completed(step):
+                        steps_to_send |= step
+                        break
+
+            for step in steps_to_send:
+                participant.process_step(step)
 
             return True
             

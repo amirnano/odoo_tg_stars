@@ -36,6 +36,7 @@ class TelegramCampaignParticipant(models.Model):
         """پردازش مرحله کمپین"""
         self.ensure_one()
         _logger = logging.getLogger(__name__)
+        _logger.info(f"Processing step: {step.name} (Type: {step.message_type}) for participant: {self.id}")
         handlers = self.env['telegram.step.handlers']
 
         try:
@@ -70,11 +71,13 @@ class TelegramCampaignParticipant(models.Model):
                         parse_mode='HTML'
                     )
                 if not result:
+                    _logger.error("Failed to send message")
                     return {'error': 'خطا در ارسال پیام'}
 
                 # اضافه کردن این قسمت برای رفتن به مرحله بعد
                 next_step = self._get_next_step(step)
                 if next_step:
+                    _logger.info(f"Moving to next step: {next_step.name}")
                     self.write({'current_step_id': next_step.id})
                     return self.process_step(next_step)
 
@@ -117,6 +120,37 @@ class TelegramCampaignParticipant(models.Model):
         except Exception as e:
             _logger.error(f"Error processing step: {str(e)}")
             return {'error': str(e)}
+
+    @api.model
+    def find_or_create(self, telegram_info, campaign):
+        """یافتن یا ایجاد شرکت‌کننده"""
+        participant = self.search([
+            ('telegram_info_id', '=', telegram_info.id),
+            ('campaign_id', '=', campaign.id)
+        ], limit=1)
+        if participant:
+            return participant, False
+        else:
+            participant = self.create({
+                'campaign_id': campaign.id,
+                'telegram_info_id': telegram_info.id,
+                'join_date': fields.Datetime.now(),
+                'last_start_date': fields.Datetime.now(),
+                'partner_id': telegram_info.partner_id.id,
+                'telegram_id': telegram_info.telegram_id,
+                'telegram_username': telegram_info.telegram_username,
+                'chat_id': telegram_info.chat_id,
+                'bot_id': telegram_info.bot_id.id
+            })
+            return participant, True
+
+    def is_step_completed(self, step):
+        """بررسی اینکه آیا مرحله تکمیل شده است"""
+        self.ensure_one()
+        if step.target_model_id and step.target_field_id:
+            field_key = f"{step.target_model_id.model}.{step.target_field_id.name}"
+            return field_key in (self.completed_fields or "")
+        return False
 
     def _get_next_step(self, current_step):
         """دریافت مرحله بعدی بر اساس sequence"""

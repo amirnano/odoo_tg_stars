@@ -113,6 +113,7 @@ class WebhookController(http.Controller):
     def _process_message(self, bot, data):
         """پردازش پیام دریافتی"""
         _logger = logging.getLogger(__name__)
+        _logger.info(f"Processing message with data: {data}")
         
         try:
             message = data.get('message', {})
@@ -129,12 +130,14 @@ class WebhookController(http.Controller):
             last_name = user_data.get('last_name', '')
             is_premium = user_data.get('is_premium', False)
 
+            _logger.info(f"Telegram ID: {telegram_id}, Bot ID: {bot.id}")
+
             # یافتن یا ایجاد کاربر
             telegram_info_search = request.env['telegram.info'].sudo().search([('telegram_id', '=', str(telegram_id))], limit=1)
             partner = telegram_info_search.partner_id if telegram_info_search else None
             if not partner:
                 # ایجاد مخاطب جدید
-                _logger.info(f"ایجاد کاربر جدید برای {username}")
+                _logger.info(f"Creating new partner for {username}")
                 
                 # دریافت یا ایجاد دسته‌بندی Premium
                 premium_category = request.env['res.partner.category'].sudo().search([
@@ -163,6 +166,7 @@ class WebhookController(http.Controller):
                     partner_vals['image_1920'] = profile_photo
                 
                 partner = request.env['res.partner'].sudo().create(partner_vals)
+                _logger.info(f"Partner created with ID: {partner.id}")
 
             telegram_info = request.env['telegram.info'].sudo().search([('telegram_id', '=', str(telegram_id)), ('bot_id', '=', bot.id)], limit=1)
             if not telegram_info:
@@ -173,8 +177,10 @@ class WebhookController(http.Controller):
                     'telegram_username': username,
                     'chat_id': str(chat_id),
                 })
+                _logger.info(f"Telegram Info created with ID: {telegram_info.id}")
             else:
                 telegram_info.write({'last_interaction_date': datetime.now()})
+                _logger.info(f"Telegram Info found with ID: {telegram_info.id}")
 
             # بررسی اشتراک‌گذاری مخاطب
             contact = message.get('contact')
@@ -377,6 +383,7 @@ class WebhookController(http.Controller):
 
     def _process_successful_payment(self, bot, successful_payment):
         """پردازش پرداخت موفق"""
+        _logger.info(f"Processing successful payment: {successful_payment}")
         invoice_payload = successful_payment['invoice_payload']
         telegram_charge_id = successful_payment['telegram_payment_charge_id']
         provider_charge_id = successful_payment['provider_payment_charge_id']
@@ -384,6 +391,7 @@ class WebhookController(http.Controller):
         payment = request.env['telegram.payment'].sudo().search([('name', '=', invoice_payload)], limit=1)
 
         if not payment:
+            _logger.error(f"Payment not found for invoice payload: {invoice_payload}")
             return Response(status=400)
 
         payment.write({
@@ -391,6 +399,7 @@ class WebhookController(http.Controller):
             'telegram_charge_id': telegram_charge_id,
             'provider_charge_id': provider_charge_id,
         })
+        _logger.info(f"Payment {payment.id} marked as paid.")
 
         # انتقال به مرحله بعد
         participant = request.env['telegram.campaign.participant'].sudo().search([
@@ -399,13 +408,20 @@ class WebhookController(http.Controller):
         ], limit=1)
         
         if participant:
+            _logger.info(f"Participant {participant.id} found for payment.")
             current_step = payment.step_id
-            next_step = participant._get_next_step(current_step)
 
-            if next_step:
-                participant.write({'current_step_id': next_step.id})
-                participant.process_step(next_step)
-            else:
-                participant.write({'current_step_id': False})
+            steps_to_send = self.env['telegram.step']
+            for step in participant.campaign_id.step_ids.filtered(lambda s: s.sequence > current_step.sequence).sorted(lambda s: s.sequence):
+                if step.message_type in ['text', 'forward']:
+                    steps_to_send |= step
+                else:
+                    steps_to_send |= step
+                    break
+
+            for step in steps_to_send:
+                participant.process_step(step)
+        else:
+            _logger.error(f"No participant found for payment {payment.id}")
 
         return Response(status=200)
