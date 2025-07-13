@@ -130,7 +130,8 @@ class WebhookController(http.Controller):
             is_premium = user_data.get('is_premium', False)
 
             # یافتن یا ایجاد کاربر
-            partner = request.env['res.partner'].sudo().search([('telegram_info_ids.telegram_id', '=', str(telegram_id))], limit=1)
+            telegram_info_search = request.env['telegram.info'].sudo().search([('telegram_id', '=', str(telegram_id))], limit=1)
+            partner = telegram_info_search.partner_id if telegram_info_search else None
             if not partner:
                 # ایجاد مخاطب جدید
                 _logger.info(f"ایجاد کاربر جدید برای {username}")
