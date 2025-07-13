@@ -34,6 +34,7 @@ class TelegramCampaignParticipant(models.Model):
 
     def process_step(self, step, message=None, is_restart=False):
         """پردازش مرحله کمپین"""
+        self = self.sudo()
         self.ensure_one()
         _logger = logging.getLogger(__name__)
         _logger.info(f"Processing step: {step.name} (Type: {step.message_type}) for participant: {self.id}")
@@ -236,6 +237,7 @@ class TelegramCampaignParticipant(models.Model):
 
     def process_option_selection(self, callback_data, message=None):
         """پردازش انتخاب گزینه"""
+        self = self.sudo()
         self.ensure_one()
         _logger = logging.getLogger(__name__)
 
