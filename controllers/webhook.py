@@ -464,30 +464,31 @@ class WebhookController(http.Controller):
         invoice_payload = successful_payment['invoice_payload']
         telegram_charge_id = successful_payment['telegram_payment_charge_id']
         provider_charge_id = successful_payment['provider_payment_charge_id']
-        
+
         payment = request.env['telegram.payment'].sudo().search([('name', '=', invoice_payload)], limit=1)
-        
+
         if not payment:
             return Response(status=400)
-            
+
         payment.write({
             'state': 'paid',
             'telegram_charge_id': telegram_charge_id,
             'provider_charge_id': provider_charge_id,
         })
-        
+
         # انتقال به مرحله بعد
-        telegram_info = payment.partner_id.telegram_info_ids.filtered(lambda i: i.bot_id == bot)
-        current_step = payment.step_id
-        next_steps = current_step.campaign_id.step_ids.filtered(
-            lambda s: s.sequence > current_step.sequence
-        ).sorted(lambda s: s.sequence)
+        telegram_info = payment.telegram_info_id
+        if not telegram_info:
+            telegram_info = payment.partner_id.telegram_info_ids.filtered(lambda i: i.bot_id.id == bot.id and i.campaign_id == payment.step_id.campaign_id)
         
-        if next_steps:
-            next_step = next_steps[0]
-            telegram_info.write({'current_step_id': next_step.id})
-            telegram_info.process_step(next_step)
-        else:
-            telegram_info.write({'current_step_id': False})
+        if telegram_info:
+            current_step = payment.step_id
+            next_step = telegram_info._get_next_step(current_step)
+
+            if next_step:
+                telegram_info.write({'current_step_id': next_step.id})
+                telegram_info.process_step(next_step)
+            else:
+                telegram_info.write({'current_step_id': False})
 
         return Response(status=200)
