@@ -146,6 +146,7 @@ class TelegramCampaignParticipant(models.Model):
 
     def is_step_completed(self, step):
         """بررسی اینکه آیا مرحله تکمیل شده است"""
+        self = self.sudo()
         self.ensure_one()
         if step.target_model_id and step.target_field_id:
             field_key = f"{step.target_model_id.model}.{step.target_field_id.name}"
@@ -154,6 +155,7 @@ class TelegramCampaignParticipant(models.Model):
 
     def _get_next_step(self, current_step):
         """دریافت مرحله بعدی بر اساس sequence"""
+        self = self.sudo()
         next_steps = self.campaign_id.step_ids.filtered(
             lambda s: s.sequence > current_step.sequence
         ).sorted(lambda s: s.sequence)
@@ -161,6 +163,7 @@ class TelegramCampaignParticipant(models.Model):
 
     def process_forward_message(self, step):
         """پردازش پیام فورواردی"""
+        self = self.sudo()
         self.ensure_one()
         _logger = logging.getLogger(__name__)
 
