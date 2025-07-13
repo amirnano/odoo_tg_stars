@@ -236,15 +236,7 @@ class WebhookController(http.Controller):
                                 break
                 
                 if start_parameter:
-                    result = telegram_info.process_start_parameter(start_parameter)
-                    if isinstance(result, dict) and result.get('payment_sent'):
-                        return Response(status=200)
-                    if not result:
-                        service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
-                        service.send_message(
-                            chat_id=chat_id,
-                            message='متأسفانه کمپین مورد نظر یافت نشد!'
-                        )
+                    telegram_info.process_start_parameter(start_parameter)
                 else:
                     service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
                     service.send_message(
