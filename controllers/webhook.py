@@ -403,7 +403,7 @@ class WebhookController(http.Controller):
             _logger.info(f"Participant {participant.id} found for payment.")
             current_step = payment.step_id
 
-            steps_to_send = self.env['telegram.step']
+            steps_to_send = request.env['telegram.step']
             for step in participant.campaign_id.step_ids.filtered(lambda s: s.sequence > current_step.sequence).sorted(lambda s: s.sequence):
                 if step.message_type in ['text', 'forward']:
                     steps_to_send |= step
