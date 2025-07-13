@@ -404,7 +404,7 @@ class WebhookController(http.Controller):
             current_step = payment.step_id
 
             steps_to_send = request.env['telegram.step']
-            for step in participant.campaign_id.step_ids.filtered(lambda s: s.sequence > current_step.sequence).sorted(lambda s: s.sequence):
+            for step in participant.sudo().campaign_id.step_ids.filtered(lambda s: s.sequence > current_step.sequence).sorted(lambda s: s.sequence):
                 if step.message_type in ['text', 'forward']:
                     steps_to_send |= step
                 else:
