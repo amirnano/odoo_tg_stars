@@ -125,6 +125,74 @@ class TelegramCampaignParticipant(models.Model):
         ).sorted(lambda s: s.sequence)
         return next_steps[0] if next_steps else None
 
+    def process_forward_message(self, step):
+        """پردازش پیام فورواردی"""
+        self.ensure_one()
+        _logger = logging.getLogger(__name__)
+
+        try:
+            if not step.forward_link:
+                return {'success': False, 'error': 'No forward link provided'}
+
+            # تجزیه لینک برای دریافت شناسه چت و پیام
+            parts = step.forward_link.split('/')
+            if len(parts) < 2:
+                return {'success': False, 'error': 'Invalid forward link'}
+
+            # استخراج نام کانال و شناسه پیام
+            channel_name = parts[-2].replace('@', '')
+            message_id = int(parts[-1])
+
+            _logger.info(f"Forwarding message from channel {channel_name} with ID {message_id}")
+
+            service = self.env['telegram.service'].sudo().with_context(
+                bot_id=self.bot_id.id
+            ).new()
+
+            try:
+                if step.forward_with_source:
+                    # ارسال با منبع
+                    result = service.forward_message(
+                        chat_id=self.chat_id,
+                        from_chat_id=f"@{channel_name}",
+                        message_id=message_id
+                    )
+                else:
+                    # ارسال بدون منبع
+                    result = service.copy_message(
+                        chat_id=self.chat_id,
+                        from_chat_id=f"@{channel_name}",
+                        message_id=message_id
+                    )
+
+                _logger.info(f"Forward result: {result}")
+
+                if result and step.delete_after:
+                    # ثبت برای حذف خودکار
+                    self.env['telegram.message.delete'].create({
+                        'chat_id': self.chat_id,
+                        'message_id': result['result']['message_id'],
+                        'bot_id': self.bot_id.id,
+                        'step_id': step.id,
+                        'delete_time': fields.Datetime.now() + timedelta(minutes=step.delete_delay)
+                    })
+
+                return {'success': True}
+
+            except Exception as e:
+                _logger.error(f"خطا در پردازش پیام فورواردی: {str(e)}")
+                # اگر فوروارد با خطا مواجه شد، متن پیام را ارسال می‌کنیم
+                if step.content:
+                    service.send_message(
+                        chat_id=self.chat_id,
+                        message=step.content
+                    )
+                return {'success': False, 'error': str(e)}
+
+        except Exception as e:
+            _logger.error(f"خطا در پردازش پیام فورواردی: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
     def _add_completed_field(self, field_name):
         """اضافه کردن فیلد به لیست فیلدهای تکمیل شده"""
         self.ensure_one()
