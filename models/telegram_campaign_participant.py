@@ -124,3 +124,68 @@ class TelegramCampaignParticipant(models.Model):
             lambda s: s.sequence > current_step.sequence
         ).sorted(lambda s: s.sequence)
         return next_steps[0] if next_steps else None
+
+    def _add_completed_field(self, field_name):
+        """اضافه کردن فیلد به لیست فیلدهای تکمیل شده"""
+        self.ensure_one()
+        completed = self.completed_fields.split(',') if self.completed_fields else []
+        if field_name not in completed:  # اگر فیلد قبلاً اضافه نشده
+            completed.append(field_name)
+            self.completed_fields = ','.join(completed)
+
+    def process_option_selection(self, callback_data, message=None):
+        """پردازش انتخاب گزینه"""
+        self.ensure_one()
+        _logger = logging.getLogger(__name__)
+
+        try:
+            # پیدا کردن گزینه انتخاب شده
+            option = self.env['telegram.step.option'].sudo().browse(int(callback_data))
+            if not option:
+                return {'error': 'گزینه یافت نشد'}
+
+            _logger.info(f"Selected option: {option.text} with value: {option.value}")
+
+            # ذخیره مقدار
+            if option.step_id.target_model_id and option.step_id.target_field_id:
+                model_name = option.step_id.target_model_id.model
+                field_name = option.step_id.target_field_id.name
+
+                # اصلاح ذخیره مقدار
+                if model_name == 'res.partner':
+                    if field_name == 'title':
+                        # برای فیلد title باید رکورد title را پیدا یا ایجاد کنیم
+                        title = self.env['res.partner.title'].sudo().search([
+                            ('name', '=', option.value)
+                        ], limit=1)
+                        if not title:
+                            title = self.env['res.partner.title'].sudo().create({
+                                'name': option.value,
+                                'shortcut': option.value
+                            })
+                        value = title.id
+                    else:
+                        value = option.value
+
+                    self.partner_id.write({field_name: value})
+
+                    # اضافه کردن به فیلدهای تکمیل شده
+                    field_key = f"{model_name}.{field_name}"
+                    self._add_completed_field(field_key)
+
+                # حذف پیام سوال
+                if message:
+                    service = self.env['telegram.service'].sudo().with_context(bot_id=self.bot_id.id).new()
+                    service.delete_message(self.chat_id, message['message_id'])
+
+                # رفتن به مرحله بعد
+                next_step = self._get_next_step(option.step_id)
+                if next_step:
+                    self.write({'current_step_id': next_step.id})
+                    return self.process_step(next_step)
+
+            return {'success': True}
+
+        except Exception as e:
+            _logger.error(f"Error in process_option_selection: {str(e)}")
+            return {'error': str(e)}
