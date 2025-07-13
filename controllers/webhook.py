@@ -189,15 +189,15 @@ class WebhookController(http.Controller):
             _logger.info(f"پیام دریافتی: {text} از کاربر {username} با chat_id {chat_id}")
             
             # بررسی callback_query برای گزینه‌ها
-            callback_query = data.get('callback_query')
+            successful_payment = message.get('successful_payment')
+            if successful_payment:
+                return self._process_successful_payment(bot, successful_payment)
+
             pre_checkout_query = data.get('pre_checkout_query')
             if pre_checkout_query:
                 return self._process_pre_checkout_query(bot, pre_checkout_query)
 
-            successful_payment = data.get('successful_payment')
-            if successful_payment:
-                return self._process_successful_payment(bot, successful_payment)
-
+            callback_query = data.get('callback_query')
             if callback_query:
                 _logger.info(f"Received callback query: {callback_query}")
                 message = callback_query.get('message', {})
