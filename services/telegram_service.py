@@ -35,17 +35,18 @@ class TelegramService(models.AbstractModel):
         if step_id:
             step = self.env['telegram.step'].browse(step_id)
             if step.message_type == 'payment':
-                telegram_info = self.env['telegram.info'].search([('chat_id', '=', str(chat_id))], limit=1)
-                partner = telegram_info.partner_id
-                payment = self.env['telegram.payment'].create({
-                    'partner_id': partner.id,
-                    'telegram_info_id': telegram_info.id,
-                    'step_id': step.id,
-                    'amount': step.price,
-                    'currency': step.currency,
-                    'state': 'draft',
-                })
-                return self.send_invoice(chat_id, step, payment)
+                telegram_info = self.env['telegram.info'].search([('chat_id', '=', str(chat_id)), ('bot_id', '=', bot_id)], limit=1)
+                if telegram_info:
+                    partner = telegram_info.partner_id
+                    payment = self.env['telegram.payment'].create({
+                        'partner_id': partner.id,
+                        'telegram_info_id': telegram_info.id,
+                        'step_id': step.id,
+                        'amount': step.price,
+                        'currency': step.currency,
+                        'state': 'draft',
+                    })
+                    return self.send_invoice(chat_id, step, payment)
 
         url = f'https://api.telegram.org/bot{token}/sendMessage'
         
