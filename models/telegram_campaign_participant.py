@@ -34,7 +34,6 @@ class TelegramCampaignParticipant(models.Model):
 
     def process_step(self, step, message=None, is_restart=False):
         """پردازش مرحله کمپین"""
-        self = self.sudo()
         self.ensure_one()
         _logger = logging.getLogger(__name__)
         _logger.info(f"Processing step: {step.name} (Type: {step.message_type}) for participant: {self.id}")
@@ -146,7 +145,6 @@ class TelegramCampaignParticipant(models.Model):
 
     def is_step_completed(self, step):
         """بررسی اینکه آیا مرحله تکمیل شده است"""
-        self = self.sudo()
         self.ensure_one()
         if step.target_model_id and step.target_field_id:
             field_key = f"{step.target_model_id.model}.{step.target_field_id.name}"
@@ -155,7 +153,6 @@ class TelegramCampaignParticipant(models.Model):
 
     def _get_next_step(self, current_step):
         """دریافت مرحله بعدی بر اساس sequence"""
-        self = self.sudo()
         next_steps = self.campaign_id.step_ids.filtered(
             lambda s: s.sequence > current_step.sequence
         ).sorted(lambda s: s.sequence)
@@ -163,7 +160,6 @@ class TelegramCampaignParticipant(models.Model):
 
     def process_forward_message(self, step):
         """پردازش پیام فورواردی"""
-        self = self.sudo()
         self.ensure_one()
         _logger = logging.getLogger(__name__)
 
@@ -240,7 +236,6 @@ class TelegramCampaignParticipant(models.Model):
 
     def process_option_selection(self, callback_data, message=None):
         """پردازش انتخاب گزینه"""
-        self = self.sudo()
         self.ensure_one()
         _logger = logging.getLogger(__name__)
 

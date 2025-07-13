@@ -28,3 +28,4 @@ access_telegram_message_history_user,telegram.message.history.user,model_telegra
 access_telegram_message_history_manager,telegram.message.history.manager,model_telegram_message_history,telegram_base.group_telegram_manager,1,1,1,1
 access_telegram_scheduled_message_user,telegram.scheduled.message.user,model_telegram_scheduled_message,telegram_base.group_telegram_user,1,1,1,0
 access_telegram_scheduled_message_manager,telegram.scheduled.message.manager,model_telegram_scheduled_message,telegram_base.group_telegram_manager,1,1,1,1
+access_telegram_step_public,telegram.step.public,model_telegram_step,base.group_public,1,0,0,0
