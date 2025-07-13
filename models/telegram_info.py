@@ -65,7 +65,8 @@ class TelegramInfo(models.Model):
                 else:
                     if not participant.is_step_completed(step):
                         steps_to_send |= step
-                        break
+                        if step.message_type not in ['text', 'forward']:
+                            break
 
             for step in steps_to_send:
                 participant.process_step(step)

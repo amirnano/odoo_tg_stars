@@ -79,7 +79,6 @@ class TelegramCampaignParticipant(models.Model):
                 if next_step:
                     _logger.info(f"Moving to next step: {next_step.name}")
                     self.write({'current_step_id': next_step.id})
-                    return self.process_step(next_step)
 
             elif step.message_type == 'forward':
                 result = step.process_forward_message(self)
@@ -284,7 +283,6 @@ class TelegramCampaignParticipant(models.Model):
                 next_step = self._get_next_step(option.step_id)
                 if next_step:
                     self.write({'current_step_id': next_step.id})
-                    return self.process_step(next_step)
 
             return {'success': True}
 

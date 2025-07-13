@@ -417,7 +417,8 @@ class WebhookController(http.Controller):
                     steps_to_send |= step
                 else:
                     steps_to_send |= step
-                    break
+                    if step.message_type not in ['text', 'forward']:
+                        break
 
             for step in steps_to_send:
                 participant.process_step(step)
