@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_step_wizard_form" model="ir.ui.view">
+        <field name="name">telegram.step.wizard.form</field>
+        <field name="model">telegram.step.wizard</field>
+        <field name="arch" type="xml">
+            <form string="افزودن مرحله">
+                <group>
+                    <field name="name"/>
+                    <field name="sequence"/>
+                    <field name="message_type"/>
+                    <field name="content"/>
+                    <field name="target_model_id" 
+                           invisible="message_type not in ['save_info']"
+                           options="{'no_create': True, 'no_open': True}"/>
+                    <field name="target_field_id"
+                           invisible="message_type not in ['save_info']"
+                           options="{'no_create': True, 'no_open': True}"/>
+                    <field name="condition"
+                           invisible="message_type != 'conditional_message'"/>
+                    <field name="attachment" widget="binary" 
+                           invisible="message_type != 'text'"
+                           filename="attachment_name"/>
+                    <field name="attachment_name" invisible="1"/>
+                    <field name="attachment_type" readonly="1"
+                           invisible="not attachment"/>
+                </group>
+                <group string="اعتبارسنجی" invisible="message_type not in ['save_info', 'contact_request']">
+                    <field name="validation_type"/>
+                    <field name="min_length" invisible="validation_type == 'none'"/>
+                    <field name="max_length" invisible="validation_type == 'none'"/>
+                    <field name="regex_pattern" invisible="validation_type == 'none'"/>
+                    <field name="error_message" invisible="validation_type == 'none'"/>
+                </group>
+                <footer>
+                    <button string="افزودن" 
+                            name="action_add_step" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="لغو" 
+                            class="btn-secondary" 
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_step_wizard" model="ir.actions.act_window">
+        <field name="name">افزودن مرحله</field>
+        <field name="res_model">telegram.step.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

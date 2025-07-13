@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List View -->
+    <record id="view_telegram_payment_list" model="ir.ui.view">
+        <field name="name">telegram.payment.list</field>
+        <field name="model">telegram.payment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="product_id"/>
+                <field name="amount"/>
+                <field name="currency"/>
+                <field name="state"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_telegram_payment_form" model="ir.ui.view">
+        <field name="name">telegram.payment.form</field>
+        <field name="model">telegram.payment</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="partner_id"/>
+                        <field name="product_id"/>
+                        <field name="amount"/>
+                        <field name="currency"/>
+                        <field name="state"/>
+                        <field name="telegram_charge_id"/>
+                        <field name="provider_charge_id"/>
+                        <field name="error_message"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_telegram_payment" model="ir.actions.act_window">
+        <field name="name">پرداخت‌های تلگرام</field>
+        <field name="res_model">telegram.payment</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+</odoo>

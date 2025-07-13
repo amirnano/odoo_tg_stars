@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- List View -->
+        <record id="view_telegram_scheduled_message_tree" model="ir.ui.view">
+            <field name="name">telegram.scheduled.message.list</field>
+            <field name="model">telegram.scheduled.message</field>
+            <field name="arch" type="xml">
+                <list>
+                    <field name="name"/>
+                    <field name="bot_id"/>
+                    <field name="participant_count"/>
+                    <field name="processed_count"/>
+                    <field name="state"/>
+                    <field name="create_date"/>
+                </list>
+            </field>
+        </record>
+
+        <!-- Form View -->
+        <record id="view_telegram_scheduled_message_form" model="ir.ui.view">
+            <field name="name">telegram.scheduled.message.form</field>
+            <field name="model">telegram.scheduled.message</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <button name="action_send" 
+                                string="ارسال پیام" 
+                                type="object" 
+                                class="oe_highlight"
+                                invisible="state != 'draft'"/>
+                        <field name="state" widget="statusbar"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="bot_id"/>
+                            </group>
+                            <group>
+                                <field name="domain" 
+                                       widget="domain" 
+                                       options="{'model': 'res.partner'}" 
+                                       string="فیلتر مخاطبین"/>
+                                <field name="excluded_chat_ids" 
+                                       placeholder="شناسه‌های چت را با فاصله وارد کنید (مثال: 123456 789012)"
+                                       help="شناسه‌های چت که نباید پیام دریافت کنند"/>
+                                <field name="participant_count"/>
+                                <field name="processed_count"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="پیام">
+                                <group>
+                                    <field name="use_html_format"/>
+                                    <field name="message" 
+                                           widget="html" 
+                                           options="{'style-inline': true}"
+                                           placeholder="متن پیام را وارد کنید..."/>
+                                </group>
+                            </page>
+                            <page string="فایل پیوست">
+                                <group>
+                                    <field name="attachment" filename="attachment_name"/>
+                                    <field name="attachment_name" invisible="1"/>
+                                    <field name="attachment_type" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="خطا" invisible="not last_error">
+                                <field name="last_error"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action -->
+        <record id="action_telegram_scheduled_message" model="ir.actions.act_window">
+            <field name="name">پیام‌های تلگرام</field>
+            <field name="res_model">telegram.scheduled.message</field>
+            <field name="view_mode">list,form</field>
+        </record>
+
+        <!-- Menu -->
+        <menuitem id="menu_telegram_scheduled_message"
+                  name="پیام‌های تلگرام"
+                  parent="telegram_base.menu_telegram_root"
+                  action="action_telegram_scheduled_message"
+                  sequence="20"/>
+    </data>
+</odoo> 

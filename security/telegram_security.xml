@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- گروه‌های دسترسی -->
+        <record id="module_telegram_category" model="ir.module.category">
+            <field name="name">تلگرام</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <record id="group_telegram_user" model="res.groups">
+            <field name="name">کاربر</field>
+            <field name="category_id" ref="module_telegram_category"/>
+        </record>
+
+        <record id="group_telegram_manager" model="res.groups">
+            <field name="name">مدیر</field>
+            <field name="category_id" ref="module_telegram_category"/>
+            <field name="implied_ids" eval="[(4, ref('group_telegram_user'))]"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+
+        <!-- قوانین رکورد -->
+        <record id="telegram_bot_rule" model="ir.rule">
+            <field name="name">Telegram Bot Access Rule</field>
+            <field name="model_id" ref="model_telegram_bot"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('group_telegram_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="telegram_info_rule" model="ir.rule">
+            <field name="name">Telegram Info Access Rule</field>
+            <field name="model_id" ref="model_telegram_info"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('group_telegram_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <!-- قانون دسترسی برای کمپین -->
+        <record id="telegram_campaign_rule" model="ir.rule">
+            <field name="name">Telegram Campaign Access Rule</field>
+            <field name="model_id" ref="model_telegram_campaign"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('group_telegram_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <!-- قوانین رکورد برای ویزارد ارسال تکی -->
+        <record id="telegram_send_direct_message_wizard_rule" model="ir.rule">
+            <field name="name">Telegram Send Direct Message Wizard Rule</field>
+            <field name="model_id" ref="model_telegram_send_direct_message_wizard"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('telegram_base.group_telegram_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+    </data>
+</odoo> 

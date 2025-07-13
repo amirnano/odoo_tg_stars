@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="telegram_info_list_view" model="ir.ui.view">
+        <field name="name">telegram.info.list</field>
+        <field name="model">telegram.info</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="partner_id"/>
+                <field name="bot_id"/>
+                <field name="telegram_id"/>
+                <field name="telegram_username"/>
+                <field name="chat_id"/>
+                <field name="bot_start_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="telegram_info_form_view" model="ir.ui.view">
+        <field name="name">telegram.info.form</field>
+        <field name="model">telegram.info</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="partner_id"/>
+                        <field name="bot_id" domain="[('is_active', '=', True)]"/>
+                        <field name="telegram_id"/>
+                        <field name="telegram_username"/>
+                        <field name="chat_id"/>
+                        <field name="bot_start_date"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_telegram_info" model="ir.actions.act_window">
+        <field name="name">اطلاعات تلگرام</field>
+        <field name="res_model">telegram.info</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="telegram_info_list_view"/>
+    </record>
+</odoo> 

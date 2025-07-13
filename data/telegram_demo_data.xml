@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- ربات نمونه -->
+        <record id="demo_bot" model="telegram.bot" forcecreate="True">
+            <field name="name">ربات نمونه</field>
+            <field name="username">demo_bot</field>
+            <field name="api_token">123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11</field>
+            <field name="is_active" eval="True"/>
+        </record>
+
+        <!-- کمپین نمونه -->
+        <record id="demo_registration_campaign" model="telegram.campaign" forcecreate="True">
+            <field name="name">کمپین ثبت‌نام مشتری</field>
+            <field name="bot_id" ref="telegram_base.demo_bot"/>
+            <field name="start_parameter">f</field>
+            <field name="active" eval="True"/>
+            <field name="state">active</field>
+        </record>
+
+        <!-- مراحل کمپین -->
+        <record id="demo_step_name" model="telegram.step" forcecreate="True">
+            <field name="name">درخواست نام</field>
+            <field name="campaign_id" ref="telegram_base.demo_registration_campaign"/>
+            <field name="sequence">10</field>
+            <field name="message_type">save_info</field>
+            <field name="content">لطفاً نام و نام خانوادگی خود را وارد کنید:</field>
+            <field name="target_model_id" ref="base.model_res_partner"/>
+            <field name="target_field_id" ref="base.field_res_partner__name"/>
+        </record>
+
+        <record id="demo_step_contact" model="telegram.step" forcecreate="True">
+            <field name="name">درخواست شماره تماس</field>
+            <field name="campaign_id" ref="telegram_base.demo_registration_campaign"/>
+            <field name="sequence">20</field>
+            <field name="message_type">contact_request</field>
+            <field name="content">برای تکمیل ثبت‌نام، لطفاً شماره تماس خود را به اشتراک بگذارید.
+
+🔘 دکمه "اشتراک‌گذاری شماره تماس" را لمس کنید.</field>
+            <field name="target_model_id" ref="base.model_res_partner"/>
+            <field name="target_field_id" ref="base.field_res_partner__phone"/>
+            <field name="validation_type">contact</field>
+        </record>
+
+        <record id="demo_step_final" model="telegram.step" forcecreate="True">
+            <field name="name">پیام پایانی</field>
+            <field name="campaign_id" ref="telegram_base.demo_registration_campaign"/>
+            <field name="sequence">30</field>
+            <field name="message_type">conditional_message</field>
+            <field name="content">✅ تبریک! ثبت‌نام شما با موفقیت انجام شد.
+
+📋 اطلاعات شما:
+👤 نام: {partner.name}
+📱 تلفن: {partner.phone}
+
+🔔 به زودی کارشناسان ما با شما تماس خواهند گرفت.</field>
+            <field name="condition">partner.phone and partner.name</field>
+        </record>
+
+        <record id="demo_step_gender" model="telegram.step" forcecreate="True">
+            <field name="name">انتخاب جنسیت</field>
+            <field name="campaign_id" ref="telegram_base.demo_registration_campaign"/>
+            <field name="sequence">15</field>
+            <field name="message_type">option_select</field>
+            <field name="content">لطفا جنسیت خود را انتخاب کنید:</field>
+            <field name="target_model_id" ref="base.model_res_partner"/>
+            <field name="target_field_id" ref="base.field_res_partner__title"/>
+        </record>
+
+        <record id="demo_option_male" model="telegram.step.option" forcecreate="True">
+            <field name="step_id" ref="demo_step_gender"/>
+            <field name="text">من آقا هستم</field>
+            <field name="value">آقا</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="demo_option_female" model="telegram.step.option" forcecreate="True">
+            <field name="step_id" ref="demo_step_gender"/>
+            <field name="text">من خانم هستم</field>
+            <field name="value">خانم</field>
+            <field name="sequence">20</field>
+        </record>
+
+        <record id="demo_step_forward" model="telegram.step" forcecreate="True">
+            <field name="name">پیام فورواردی</field>
+            <field name="campaign_id" ref="telegram_base.demo_registration_campaign"/>
+            <field name="sequence">25</field>
+            <field name="message_type">forward</field>
+            <field name="forward_link">https://t.me/cafeeclip/70220</field>
+            <field name="forward_with_source">True</field>
+        </record>
+    </data>
+</odoo> 

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- List View -->
+    <record id="view_telegram_product_list" model="ir.ui.view">
+        <field name="name">telegram.product.list</field>
+        <field name="model">telegram.product</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="product_type"/>
+                <field name="price"/>
+                <field name="currency"/>
+                <field name="is_active"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_telegram_product_form" model="ir.ui.view">
+        <field name="name">telegram.product.form</field>
+        <field name="model">telegram.product</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="product_type"/>
+                        <field name="price"/>
+                        <field name="currency"/>
+                        <field name="is_active"/>
+                    </group>
+                    <group>
+                        <field name="attachment" filename="attachment_name"/>
+                        <field name="attachment_name" invisible="1"/>
+                    </group>
+                    <group>
+                        <field name="description"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_telegram_product" model="ir.actions.act_window">
+        <field name="name">محصولات تلگرام</field>
+        <field name="res_model">telegram.product</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

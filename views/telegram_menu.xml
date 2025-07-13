@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- منوی اصلی -->
+    <menuitem id="menu_telegram_root"
+              name="تلگرام"
+              web_icon="telegram_base,static/description/icon.png"
+              sequence="50"/>
+
+    <!-- زیرمنوها -->
+    <menuitem id="menu_telegram_bot"
+              name="ربات‌ها"
+              parent="menu_telegram_root"
+              action="telegram_base.action_telegram_bot"
+              sequence="10"/>
+
+    <menuitem id="menu_telegram_campaign"
+              name="کمپین‌ها"
+              parent="menu_telegram_root"
+              action="telegram_base.action_telegram_campaign"
+              sequence="20"/>
+
+    <menuitem id="menu_telegram_log"
+              name="لاگ‌ها"
+              parent="menu_telegram_root"
+              action="telegram_base.action_telegram_log"
+              sequence="30"/>
+</odoo>

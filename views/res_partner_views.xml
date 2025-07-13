@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- اکشن برای ارسال تکی -->
+    <record id="action_telegram_send_direct_message" model="ir.actions.act_window">
+        <field name="name">ارسال پیام تلگرام</field>
+        <field name="res_model">telegram.send.direct.message.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="context">{
+            'default_domain': [('id', '=', active_id)]
+        }</field>
+    </record>
+
+    <!-- View برای فرم مخاطب -->
+    <record id="view_partner_form_telegram" model="ir.ui.view">
+        <field name="name">res.partner.form.telegram</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <div class="oe_button_box" position="inside">
+                <button name="%(telegram_base.action_telegram_send_direct_message)d"
+                        type="action"
+                        class="oe_stat_button"
+                        icon="fa-telegram"
+                        string="ارسال پیام تلگرام"
+                        invisible="not telegram_ids"/>
+            </div>
+
+            <notebook position="inside">
+                <page string="تلگرام" name="telegram" invisible="not telegram_ids">
+                    <group>
+                        <field name="telegram_ids" readonly="1">
+                            <list string="اطلاعات تلگرام">
+                                <field name="telegram_id"/>
+                                <field name="telegram_username"/>
+                                <field name="chat_id"/>
+                                <field name="bot_start_date"/>
+                                <field name="bot_id"/>
+                            </list>
+                        </field>
+                        <separator string="کمپین‌های شرکته شده"/>
+                        <field name="campaign_participant_ids" readonly="1">
+                            <list string="کمپین‌ها">
+                                <field name="campaign_id"/>
+                                <field name="join_date"/>
+                                <field name="current_step_id"/>
+                                <field name="bot_id"/>
+                            </list>
+                        </field>
+                    </group>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>

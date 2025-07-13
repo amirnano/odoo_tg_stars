@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Action for Send Campaign Message -->
+    <record id="action_telegram_send_campaign_message" model="ir.actions.act_window">
+        <field name="name">ارسال پیام به شرکت‌کنندگان</field>
+        <field name="res_model">telegram.send.message.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{
+            'default_domain': "[('id', 'in', active_ids)]",
+            'default_bot_id': active_id
+        }</field>
+    </record>
+
+    <!-- Campaign Tree View -->
+    <record id="view_telegram_campaign_list" model="ir.ui.view">
+        <field name="name">telegram.campaign.list</field>
+        <field name="model">telegram.campaign</field>
+        <field name="arch" type="xml">
+            <list string="کمپین‌های تلگرام">
+                <field name="name"/>
+                <field name="bot_id"/>
+                <field name="start_parameter"/>
+                <field name="state"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Campaign Form View -->
+    <record id="view_telegram_campaign_form" model="ir.ui.view">
+        <field name="name">telegram.campaign.form</field>
+        <field name="model">telegram.campaign</field>
+        <field name="arch" type="xml">
+            <form string="کمپین تلگرام">
+                <header>
+                    <button name="action_activate" 
+                            string="فعال‌سازی" 
+                            type="object" 
+                            class="oe_highlight"
+                            invisible="state != 'draft'"/>
+                    <button name="action_done" 
+                            string="پایان" 
+                            type="object"
+                            invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="toggle_active" type="object" class="oe_stat_button" icon="fa-archive">
+                            <field name="active" widget="boolean_button"/>
+                        </button>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="start_parameter"/>
+                            <field name="start_message"/>
+                        </group>
+                        <group>
+                            <field name="bot_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="مراحل" name="steps">
+                            <field name="step_ids">
+                                <list string="مراحل کمپین">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="message_type"/>
+                                    <field name="content"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="شرکت‌کنندگان" name="participants">
+                            <group>
+                                <button name="%(telegram_base.action_telegram_send_campaign_message)d" 
+                                        string="ارسال پیام به همه" 
+                                        type="action" 
+                                        class="btn-primary"/>
+                            </group>
+                            <field name="participant_ids">
+                                <list string="شرکت‌کنندگان">
+                                    <field name="partner_id"/>
+                                    <field name="telegram_id"/>
+                                    <field name="telegram_username"/>
+                                    <field name="join_date"/>
+                                    <field name="current_step_id"/>
+                                    <field name="bot_id"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Campaign Search View -->
+    <record id="view_telegram_campaign_search" model="ir.ui.view">
+        <field name="name">telegram.campaign.search</field>
+        <field name="model">telegram.campaign</field>
+        <field name="arch" type="xml">
+            <search string="جستجوی کمپین">
+                <field name="name"/>
+                <field name="bot_id"/>
+                <field name="start_parameter"/>
+                <separator/>
+                <filter string="فعال" name="active" domain="[('active', '=', True)]"/>
+                <filter string="بایگانی شده" name="inactive" domain="[('active', '=', False)]"/>
+                <group expand="0" string="گروه‌بندی">
+                    <filter string="ربات" name="group_by_bot" context="{'group_by': 'bot_id'}"/>
+                    <filter string="وضعیت" name="group_by_state" context="{'group_by': 'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Campaign Action -->
+    <record id="action_telegram_campaign" model="ir.actions.act_window">
+        <field name="name">کمپین‌های تلگرام</field>
+        <field name="res_model">telegram.campaign</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                اولین کمپین تلگرام خود را ایجاد کنید
+            </p>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Form View -->
+    <record id="view_telegram_step_form" model="ir.ui.view">
+        <field name="name">telegram.step.form</field>
+        <field name="model">telegram.step</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <!-- فیلدهای اصلی -->
+                    <group>
+                        <field name="name"/>
+                        <field name="sequence"/>
+                        <field name="campaign_id"/>
+                        <field name="message_type"/>
+                        <field name="forward_link" invisible="message_type != 'forward'"/>
+                        <field name="forward_with_source" invisible="message_type != 'forward'"/>
+                        <field name="delete_after"/>
+                        <field name="delete_delay" invisible="not delete_after"/>
+                        <field name="price" invisible="message_type != 'payment'"/>
+                        <field name="currency" invisible="message_type != 'payment'"/>
+                    </group>
+
+                    <notebook>
+                        <!-- محتوا -->
+                        <page string="محتوا" invisible="not show_content">
+                            <group>
+                                <field name="content" nolabel="1" placeholder="متن پیام را وارد کنید..."/>
+                            </group>
+                        </page>
+
+                        <!-- پیوست -->
+                        <page string="پیوست" invisible="not show_attachment">
+                            <group>
+                                <field name="attachment" filename="attachment_name"/>
+                                <field name="attachment_name" invisible="1"/>
+                                <field name="attachment_type" readonly="1"/>
+                            </group>
+                        </page>
+
+                        <!-- فیلدهای هدف -->
+                        <page string="فیلدهای هدف" invisible="not show_target_fields">
+                            <group>
+                                <field name="target_model_id" invisible="not show_target_fields"/>
+                                <field name="target_field_id" invisible="not show_target_fields" 
+                                       domain="[('model_id', '=', target_model_id)]"
+                                       options="{'no_create': True, 'no_edit': True}"/>
+                            </group>
+                        </page>
+
+                        <!-- اعتبارسنجی -->
+                        <page string="اعتبارسنجی" invisible="not show_validation">
+                            <group>
+                                <field name="validation_type"/>
+                                <field name="min_length" invisible="validation_type == 'none'"/>
+                                <field name="max_length" invisible="validation_type == 'none'"/>
+                                <field name="regex_pattern" invisible="validation_type == 'none'"/>
+                                <field name="error_message" invisible="validation_type == 'none'"/>
+                            </group>
+                        </page>
+
+                        <!-- شرط -->
+                        <page string="شرط" invisible="not show_condition">
+                            <group>
+                                <field name="condition"/>
+                            </group>
+                        </page>
+
+                        <!-- گزینه‌ها -->
+                        <page string="گزینه‌ها" invisible="not show_options">
+                            <field name="option_ids" context="{'default_campaign_id': campaign_id}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="text"/>
+                                    <field name="value"/>
+                                    <field name="next_step_id" domain="[('campaign_id', '=', campaign_id)]"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- List View -->
+    <record id="view_telegram_step_list" model="ir.ui.view">
+        <field name="name">telegram.step.list</field>
+        <field name="model">telegram.step</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="campaign_id"/>
+                <field name="message_type"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_telegram_step_search" model="ir.ui.view">
+        <field name="name">telegram.step.search</field>
+        <field name="model">telegram.step</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="campaign_id"/>
+                <field name="message_type"/>
+                <group expand="0" string="گروه‌بندی">
+                    <filter string="کمپین" name="group_by_campaign" context="{'group_by': 'campaign_id'}"/>
+                    <filter string="نوع پیام" name="group_by_type" context="{'group_by': 'message_type'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_telegram_send_message_wizard_form" model="ir.ui.view">
+        <field name="name">telegram.send.message.wizard.form</field>
+        <field name="model">telegram.send.message.wizard</field>
+        <field name="arch" type="xml">
+            <form string="ارسال پیام گروهی">
+                <sheet>
+                    <group>
+                        <field name="domain" 
+                               widget="domain" 
+                               options="{'model': 'res.partner'}" 
+                               string="فیلتر مخاطبین"/>
+                        <field name="participant_count"/>
+                        <field name="bot_id"/>
+                    </group>
+
+                    <group>
+                        <field name="use_html_format"/>
+                        <field name="message" 
+                               widget="html" 
+                               options="{'style-inline': true}"
+                               placeholder="متن پیام را وارد کنید..."/>
+                        <field name="attachment" filename="attachment_name"/>
+                        <field name="attachment_name" invisible="1"/>
+                        <field name="attachment_type" readonly="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="ارسال" 
+                            name="action_send_message" 
+                            type="object" 
+                            class="btn-primary"/>
+                    <button string="انصراف" 
+                            class="btn-secondary" 
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- اکشن برای ارسال گروهی -->
+    <record id="action_telegram_send_campaign_message" model="ir.actions.act_window">
+        <field name="name">ارسال پیام گروهی</field>
+        <field name="res_model">telegram.send.message.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>
