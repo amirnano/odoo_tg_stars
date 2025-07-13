@@ -130,7 +130,7 @@ class WebhookController(http.Controller):
             is_premium = user_data.get('is_premium', False)
 
             # یافتن یا ایجاد کاربر
-            telegram_info = request.env['telegram.info'].sudo().search([('telegram_id', '=', str(telegram_id))], limit=1)
+            telegram_info = request.env['telegram.info'].sudo().search([('telegram_id', '=', str(telegram_id)), ('bot_id', '=', bot.id)], limit=1)
             if not telegram_info:
                 # ایجاد مخاطب جدید
                 _logger.info(f"ایجاد کاربر جدید برای {username}")
@@ -171,27 +171,8 @@ class WebhookController(http.Controller):
                     'chat_id': str(chat_id),
                 })
             else:
-                # اگر کاربر وجود دارد، اطلاعات ربات را برای او به‌روزرسانی می‌کنیم
-                bot_telegram_info = telegram_info.filtered(lambda i: i.bot_id == bot)
-                if not bot_telegram_info:
-                    request.env['telegram.info'].sudo().create({
-                        'partner_id': telegram_info.partner_id.id,
-                        'bot_id': bot.id,
-                        'telegram_id': str(telegram_id),
-                        'telegram_username': username,
-                        'chat_id': str(chat_id),
-                    })
-            telegram_info = request.env['telegram.info'].sudo().search([
-                ('telegram_id', '=', str(telegram_id)),
-                ('bot_id', '=', bot.id)
-            ], limit=1)
-            user_data = message.get('from', {})
-            telegram_id = user_data.get('id')
-            username = user_data.get('username')
-            first_name = user_data.get('first_name', '')
-            last_name = user_data.get('last_name', '')
-            is_premium = user_data.get('is_premium', False)
-            
+                telegram_info.write({'last_interaction_date': datetime.now()})
+
             # بررسی اشتراک‌گذاری مخاطب
             contact = message.get('contact')
             text = message.get('text', '')
@@ -216,13 +197,13 @@ class WebhookController(http.Controller):
                 callback_data = callback_query.get('data', '')
                 
                 env = request.env(context={'telegram_user_id': telegram_id})
-                telegram_info = env['telegram.info'].sudo().search([
-                    ('telegram_id', '=', str(telegram_id)),
+                participant = env['telegram.campaign.participant'].sudo().search([
+                    ('telegram_info_id.telegram_id', '=', str(telegram_id)),
                     ('bot_id', '=', bot.id)
-                ], limit=1)
+                ], order='last_start_date desc', limit=1)
                 
-                if telegram_info:
-                    result = telegram_info.process_option_selection(callback_data, message)
+                if participant:
+                    result = participant.process_option_selection(callback_data, message)
                     
                     # پاسخ به callback_query
                     answer_url = f'https://api.telegram.org/bot{bot._decrypt_token(bot.api_token)}/answerCallbackQuery'
@@ -234,71 +215,6 @@ class WebhookController(http.Controller):
 
             # بررسی دستور start و پارامتر آن
             if text and text.startswith('/start'):
-                # جستجوی telegram.info با شناسه تلگرام
-                env = request.env(context={'telegram_user_id': telegram_id})
-                telegram_info = env['telegram.info'].sudo().search([
-                    ('telegram_id', '=', str(telegram_id))
-                ], limit=1)
-                
-                # اگر telegram.info وجود دارد از مخاطب آن استفاده می‌کنیم
-                if telegram_info:
-                    partner = telegram_info.partner_id
-                    
-                    # اگر برای این ربات نشده، ثبت می‌کنیم
-                    bot_telegram_info = request.env['telegram.info'].sudo().search([
-                        ('bot_id', '=', bot.id),
-                        ('telegram_id', '=', str(telegram_id))
-                    ], limit=1)
-                    
-                    if not bot_telegram_info:
-                        telegram_info = request.env['telegram.info'].sudo().create({
-                            'partner_id': partner.id,
-                            'bot_id': bot.id,
-                            'telegram_id': str(telegram_id),
-                            'telegram_username': username,
-                            'chat_id': str(chat_id),
-                        })
-                else:
-                    # ایجاد مخاطب جدید
-                    _logger.info(f"ایجاد کاربر جدید برای {username}")
-                    
-                    # دریافت یا ایجاد دسته‌بندی Premium
-                    premium_category = request.env['res.partner.category'].sudo().search([
-                        ('name', '=', 'Premium')
-                    ], limit=1)
-                    
-                    if not premium_category:
-                        premium_category = request.env['res.partner.category'].sudo().create({
-                            'name': 'Premium'
-                        })
-                    
-                    # ایجاد مخاطب بایگانی شده
-                    partner_vals = {
-                        'name': f"{first_name} {last_name}".strip() or username or str(telegram_id),
-                        'active': False,  # بایگانی شده
-                    }
-                    
-                    # اضافه کردن برچسب Premium برای کاربران premium
-                    if is_premium:
-                        partner_vals['category_id'] = [(4, premium_category.id)]
-                    
-                    # دریافت تصویر پروفایل
-                    service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
-                    profile_photo = service.get_user_profile_photos(telegram_id)
-                    if profile_photo:
-                        partner_vals['image_1920'] = profile_photo
-                    
-                    partner = request.env['res.partner'].sudo().create(partner_vals)
-                    
-                    telegram_info = request.env['telegram.info'].sudo().create({
-                        'partner_id': partner.id,
-                        'bot_id': bot.id,
-                        'telegram_id': str(telegram_id),
-                        'telegram_username': username,
-                        'chat_id': str(chat_id),
-                    })
-
-                # پردازش پارامتر start
                 parts = text.split()
                 start_parameter = parts[1] if len(parts) > 1 else None
 
@@ -330,15 +246,12 @@ class WebhookController(http.Controller):
                 return Response(status=200)
             
             # پردازش پیام‌های عادی
-            env = request.env(context={'telegram_user_id': telegram_id})
-            
-            telegram_info = env['telegram.info'].sudo().search([
-                ('telegram_id', '=', str(telegram_id)),
-                ('bot_id', '=', bot.id)
-            ], limit=1)
-            
-            if telegram_info and telegram_info.current_step_id:
-                current_step = telegram_info.current_step_id
+            participant = request.env['telegram.campaign.participant'].sudo().search([
+                ('telegram_info_id', '=', telegram_info.id)
+            ], order='last_start_date desc', limit=1)
+
+            if participant and participant.current_step_id:
+                current_step = participant.current_step_id
                 if current_step.message_type == 'payment':
                     # اگر نوع پیام پرداختی است، منتظر پاسخ پرداخت می‌مانیم و کاری انجام نمی‌دهیم
                     return Response(status=200)
@@ -357,15 +270,15 @@ class WebhookController(http.Controller):
                         )
                         return Response(status=200)
                     
-                    if phone and telegram_info and telegram_info.current_step_id:
+                    if phone and participant.current_step_id:
                         contact_data = {
                             'phone_number': phone,
                             'user_id': telegram_id
                         }
                         
                         # پردازش شماره تماس
-                        telegram_info.process_step(
-                            telegram_info.current_step_id,
+                        participant.process_step(
+                            participant.current_step_id,
                             contact_data
                         )
                         
@@ -384,8 +297,8 @@ class WebhookController(http.Controller):
                         return Response(status=200)
                 else:
                     # پردازش پیام متنی
-                    telegram_info.process_step(
-                        telegram_info.current_step_id,
+                    participant.process_step(
+                        participant.current_step_id,
                         text
                     )
                     return Response(status=200)
@@ -477,18 +390,19 @@ class WebhookController(http.Controller):
         })
 
         # انتقال به مرحله بعد
-        telegram_info = payment.telegram_info_id
-        if not telegram_info:
-            telegram_info = payment.partner_id.telegram_info_ids.filtered(lambda i: i.bot_id.id == bot.id and i.campaign_id == payment.step_id.campaign_id)
+        participant = request.env['telegram.campaign.participant'].sudo().search([
+            ('telegram_info_id', '=', payment.telegram_info_id.id),
+            ('campaign_id', '=', payment.step_id.campaign_id.id)
+        ], limit=1)
         
-        if telegram_info:
+        if participant:
             current_step = payment.step_id
-            next_step = telegram_info._get_next_step(current_step)
+            next_step = participant._get_next_step(current_step)
 
             if next_step:
-                telegram_info.write({'current_step_id': next_step.id})
-                telegram_info.process_step(next_step)
+                participant.write({'current_step_id': next_step.id})
+                participant.process_step(next_step)
             else:
-                telegram_info.write({'current_step_id': False})
+                participant.write({'current_step_id': False})
 
         return Response(status=200)

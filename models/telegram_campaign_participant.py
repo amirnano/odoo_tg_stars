@@ -1,34 +1,126 @@
 from odoo import models, fields, api
+import logging
 
 class TelegramCampaignParticipant(models.Model):
     _name = 'telegram.campaign.participant'
-    _description = 'شرکت‌کنندگان کمپین'
-    _order = 'join_date desc'  # مرتب‌سازی بر اساس تاریخ پیوستن
+    _description = 'شرکت‌کنندگان کمپین تلگرام'
+    _order = 'join_date desc'
 
     campaign_id = fields.Many2one('telegram.campaign', string='کمپین', required=True, ondelete='cascade')
-    telegram_info_id = fields.Many2one('telegram.info', string='اطلاعات تلگرام', required=True, ondelete='cascade')
-    partner_id = fields.Many2one(related='telegram_info_id.partner_id', store=True, string='شریک تجاری')
-    join_date = fields.Datetime(string='تاریخ پیوستن', required=True)
+    telegram_info_id = fields.Many2one('telegram.info', string='اطلاعات تلگرام', ondelete='cascade')
     
-    # فیلدهای مرتبط برای نمایش در لیست
-    telegram_id = fields.Char(related='telegram_info_id.telegram_id', string='شناسه تلگرام', store=True)
-    telegram_username = fields.Char(related='telegram_info_id.telegram_username', string='نام کاربری تلگرام', store=True)
-    chat_id = fields.Char(related='telegram_info_id.chat_id', string='شناسه چت', store=True)
-    bot_id = fields.Many2one(related='telegram_info_id.bot_id', string='ربات', store=True)
+    partner_id = fields.Many2one(related='telegram_info_id.partner_id', string='مخاطب', store=True, readonly=True)
+    telegram_id = fields.Char(related='telegram_info_id.telegram_id', string='شناسه تلگرام', store=True, readonly=True)
+    telegram_username = fields.Char(related='telegram_info_id.telegram_username', string='نام کاربری تلگرام', store=True, readonly=True)
+    chat_id = fields.Char(related='telegram_info_id.chat_id', string='شناسه چت', store=True, readonly=True)
+    bot_id = fields.Many2one(related='telegram_info_id.bot_id', string='ربات', store=True, readonly=True)
+    
+    join_date = fields.Datetime(string='تاریخ پیوستن', default=fields.Datetime.now, readonly=True)
+    last_start_date = fields.Datetime(string='آخرین شروع', default=fields.Datetime.now)
     current_step_id = fields.Many2one('telegram.step', string='مرحله فعلی', ondelete='set null')
-    
-    # اضافه کردن فیلد active برای جلوگیری از حذف رکوردها
-    active = fields.Boolean(default=True, string='فعال')
+    completed_fields = fields.Text(string='فیلدهای تکمیل شده', help='لیست فیلدهایی که توسط کاربر پر شده‌اند')
+    state = fields.Selection([
+        ('pending', 'در انتظار'),
+        ('active', 'فعال'),
+        ('completed', 'تکمیل شده'),
+        ('canceled', 'لغو شده')
+    ], string='وضعیت', default='pending', required=True)
 
     _sql_constraints = [
-        ('unique_participant', 
-         'UNIQUE(campaign_id, telegram_info_id, join_date)',
+        ('unique_participant',
+         'UNIQUE(campaign_id, telegram_info_id)',
          'این کاربر قبلاً در این کمپین ثبت شده است!')
     ]
 
-    @api.model
-    def create(self, vals):
-        """اطمینان از ثبت تاریخ صحیح پیوستن"""
-        if not vals.get('join_date'):
-            vals['join_date'] = fields.Datetime.now()
-        return super().create(vals) 
+    def process_step(self, step, message=None, is_restart=False):
+        """پردازش مرحله کمپین"""
+        self.ensure_one()
+        _logger = logging.getLogger(__name__)
+        handlers = self.env['telegram.step.handlers']
+
+        try:
+            # بررسی آخرین پیام شرطی
+            last_conditional = self.campaign_id.step_ids.filtered(
+                lambda s: s.message_type == 'conditional_message'
+            ).sorted(lambda s: s.sequence, reverse=True)[:1]
+
+            # در استارت مجدد، اگر آخرین پیام شرطی است فقط آن را نمایش بده
+            if is_restart and last_conditional:
+                if step.id != last_conditional.id:
+                    return {'success': True}
+
+            # پردازش پیام بر اساس نوع
+            if step.message_type == 'payment':
+                service = self.env['telegram.service'].sudo().with_context(bot_id=self.bot_id.id, step_id=step.id).new()
+                service.send_message(chat_id=self.chat_id, message='')
+                return {'success': True, 'payment_sent': True}
+
+            if step.message_type in ['text', 'forward']:
+                service = self.env['telegram.service'].sudo().with_context(bot_id=self.bot_id.id).new()
+                if step.attachment:
+                    result = service.send_file(
+                        chat_id=self.chat_id,
+                        step=step,
+                        caption=step.content
+                    )
+                else:
+                    result = service.send_message(
+                        chat_id=self.chat_id,
+                        message=step.content,
+                        parse_mode='HTML'
+                    )
+                if not result:
+                    return {'error': 'خطا در ارسال پیام'}
+
+                # اضافه کردن این قسمت برای رفتن به مرحله بعد
+                next_step = self._get_next_step(step)
+                if next_step:
+                    self.write({'current_step_id': next_step.id})
+                    return self.process_step(next_step)
+
+            elif step.message_type == 'forward':
+                result = step.process_forward_message(self)
+                if not result.get('success'):
+                    return result
+
+            elif step.message_type == 'contact_request':
+                return handlers.handle_contact_request(self, step, message, is_restart)
+
+            elif step.message_type == 'save_info':
+                return handlers.handle_save_info(self, step, message, is_restart)
+
+            elif step.message_type == 'option_select':
+                return handlers.handle_option_select(self, step, message, is_restart)
+
+            elif step.message_type == 'conditional_message':
+                content = step.content.format(partner=self.partner_id)
+                service = self.env['telegram.service'].sudo().with_context(bot_id=self.bot_id.id).new()
+                result = service.send_message(
+                    chat_id=self.chat_id,
+                    message=content,
+                    parse_mode='HTML'
+                )
+                if not result:
+                    return {'error': 'خطا در ارسال پیام'}
+
+            # به روز رسانی مرحله فعلی
+            self.write({'current_step_id': step.id})
+
+            # رفتن به مرحله بعد برای پیام‌های متنی و فورواردی
+            if step.message_type in ['text', 'forward']:
+                next_step = self._get_next_step(step)
+                if next_step:
+                    return self.process_step(next_step)
+
+            return {'success': True}
+
+        except Exception as e:
+            _logger.error(f"Error processing step: {str(e)}")
+            return {'error': str(e)}
+
+    def _get_next_step(self, current_step):
+        """دریافت مرحله بعدی بر اساس sequence"""
+        next_steps = self.campaign_id.step_ids.filtered(
+            lambda s: s.sequence > current_step.sequence
+        ).sorted(lambda s: s.sequence)
+        return next_steps[0] if next_steps else None
