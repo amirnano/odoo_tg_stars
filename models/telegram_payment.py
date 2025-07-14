@@ -27,7 +27,6 @@ class TelegramPayment(models.Model):
     ], string='وضعیت', default='draft', required=True)
     
     error_message = fields.Text(string='پیام خطا', readonly=True)
-    message_id = fields.Char(string='شناسه پیام', readonly=True)
 
     @api.model
     def create(self, vals):
