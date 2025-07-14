@@ -15,9 +15,9 @@ class TelegramCampaign(models.Model):
     blocked_count = fields.Integer(string='بلاک شده', compute='_compute_stats')
     failed_count = fields.Integer(string='خطا', compute='_compute_stats')
     
-    bot_id = fields.Many2one('telegram.bot', string='ربات', required=True, 
-                            domain=[('is_active', '=', True)],
-                            ondelete='cascade')
+    bot_id = fields.Many2one('telegram.bot', string='ربات', required=True,
+                             domain=[('is_active', '=', True)],
+                             ondelete='restrict')
     start_parameter = fields.Char(string='پارامتر شروع', required=True)
     start_message = fields.Text(string='پیام شروع')
     active = fields.Boolean(string='فعال', default=True)
@@ -75,53 +75,29 @@ class TelegramCampaign(models.Model):
         self.ensure_one()
         self.write({'state': 'done'})
 
+    @api.returns('self', lambda value: value.id)
     def copy(self, default=None):
-        """تکثیر کمپین با پارامتر شروع یکتا و کپی تمام مراحل"""
+        """تکثیر کمپین با پارامتر شروع و نام یکتا"""
         self.ensure_one()
         if default is None:
             default = {}
-            
-        # اضافه کردن پسوند به پارامتر شروع
+
+        # پیدا کردن کپی‌های موجود برای تعیین شماره بعدی
+        base_param = self.start_parameter
+        existing_copies = self.search([
+            ('start_parameter', 'like', f'{base_param}_%')
+        ]).mapped('start_parameter')
+
+        counter = 1
+        while f"{base_param}_{counter}" in existing_copies:
+            counter += 1
+
         if 'start_parameter' not in default:
-            # پیدا کردن کپی‌های موجود
-            base_param = self.start_parameter
-            existing_copies = self.search([
-                ('start_parameter', 'like', f'{base_param}_%')
-            ]).mapped('start_parameter')
-            
-            # پیدا کردن شماره بعدی
-            counter = 1
-            while f"{base_param}_{counter}" in existing_copies:
-                counter += 1
-                
             default['start_parameter'] = f"{base_param}_{counter}"
-            
-        # اضافه کردن پسوند به نام
         if 'name' not in default:
             default['name'] = f"{self.name} (کپی {counter})"
-        
-        # کپی کردن کمپین
-        new_campaign = super().copy(default)
-        
-        # کپی کردن مراحل
-        for step in self.step_ids:
-            step.copy({
-                'campaign_id': new_campaign.id,
-                'sequence': step.sequence,
-                'name': step.name,
-                'message_type': step.message_type,
-                'content': step.content,
-                'target_model_id': step.target_model_id.id if step.target_model_id else False,
-                'target_field_id': step.target_field_id.id if step.target_field_id else False,
-                'condition': step.condition,
-                'validation_type': step.validation_type,
-                'min_length': step.min_length,
-                'max_length': step.max_length,
-                'regex_pattern': step.regex_pattern,
-                'error_message': step.error_message,
-            })
-            
-        return new_campaign
+
+        return super().copy(default)
 
     def unlink(self):
         """حذف کمپین و مراحل مرتبط"""

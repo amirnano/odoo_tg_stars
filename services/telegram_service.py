@@ -286,320 +286,43 @@ class TelegramService(models.AbstractModel):
             
         return None
 
-    def send_photo(self, chat_id, photo, caption=None, parse_mode='HTML'):
-        """ارسال تصویر"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
-        
-        token = self._get_bot_token(bot_id)
-        url = f'https://api.telegram.org/bot{token}/sendPhoto'
-        
-        try:
-            files = {'photo': photo}
-            data = {
-                'chat_id': chat_id,
-                'parse_mode': parse_mode
-            }
-            
-            if caption:
-                data['caption'] = caption
-            
-            response = requests.post(url, data=data, files=files, timeout=10)
-            response_data = response.json()
-            
-            if not response_data.get('ok'):
-                error_msg = response_data.get('description', 'خطای ناشناخته')
-                _logger.error(f"خطا از تلگرام: {error_msg}")
-                raise UserError(f"خطا از سمت تلگرام: {error_msg}")
-            
-            return response_data
-            
-        except Exception as e:
-            _logger.error(f"خطا در ارسال تصویر: {str(e)}")
-            raise UserError(f"خطا در ارسال تصویر: {str(e)}")
-
-    def send_audio(self, chat_id, audio, caption=None, parse_mode='HTML', title=None):
-        """ارسال فایل صوتی به تلگرام"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
-        
-        token = self._get_bot_token(bot_id)
-        url = f'https://api.telegram.org/bot{token}/sendAudio'
-        
-        try:
-            data = {
-                'chat_id': chat_id,
-                'parse_mode': parse_mode
-            }
-            
-            if caption:
-                data['caption'] = caption
-            if title:
-                data['title'] = title
-                
-            # اگر audio یک file_id باشد
-            if isinstance(audio, str):
-                data['audio'] = audio
-                files = None
-            else:
-                files = {'audio': audio}
-                
-            response = requests.post(url, data=data, files=files, timeout=10)
-            response_data = response.json()
-            
-            if not response_data.get('ok'):
-                error_msg = response_data.get('description', 'خطای ناشناخته')
-                _logger.error(f"خطا از تلگرام: {error_msg}")
-                raise UserError(f"خطا از سمت تلگرام: {error_msg}")
-            
-            return response_data
-        
-        except Exception as e:
-            _logger.error(f"خطا در ارسال فایل صوتی: {str(e)}")
-            raise UserError(f"خطا در ارسال فایل صوتی: {str(e)}")
-
-    def send_video(self, chat_id, video, caption=None, parse_mode='HTML', supports_streaming=True):
-        """ارسال ویدئو"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
-        
-        token = self._get_bot_token(bot_id)
-        url = f'https://api.telegram.org/bot{token}/sendVideo'
-        
-        try:
-            files = {'video': video}
-            data = {
-                'chat_id': chat_id,
-                'parse_mode': parse_mode,
-                'supports_streaming': supports_streaming
-            }
-            
-            if caption:
-                data['caption'] = caption
-            
-            response = requests.post(url, data=data, files=files, timeout=10)
-            response_data = response.json()
-            
-            if not response_data.get('ok'):
-                error_msg = response_data.get('description', 'خطای ناشناخته')
-                _logger.error(f"خطا از تلگرام: {error_msg}")
-                raise UserError(f"خطا از سمت تلگرام: {error_msg}")
-            
-            return response_data
-        
-        except Exception as e:
-            _logger.error(f"خطا در ارسال ویدئو: {str(e)}")
-            raise UserError(f"خطا در ارسال ویدئو: {str(e)}")
-
     def delete_message(self, chat_id, message_id):
         """حذف پیام از تلگرام"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
-        
-        token = self._get_bot_token(bot_id)
-        url = f'https://api.telegram.org/bot{token}/deleteMessage'
-        
-        try:
-            data = {
-                'chat_id': chat_id,
-                'message_id': message_id
-            }
-            
-            response = requests.post(url, data=data, timeout=10)
-            response_data = response.json()
-            
-            if not response_data.get('ok'):
-                error_msg = response_data.get('description', 'خطای ناشناخته')
-                _logger.error(f"خطا از تلگرام: {error_msg}")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            _logger.error(f"خطا در حذف پیام: {str(e)}")
-            return False
+        return self._send_request('deleteMessage', {'chat_id': chat_id, 'message_id': message_id})
 
     def remove_keyboard(self, chat_id):
         """حذف کیبورد سفارشی"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
-        
-        token = self._get_bot_token(bot_id)
-        
-        try:
-            url = f'https://api.telegram.org/bot{token}/sendMessage'
-            data = {
-                'chat_id': chat_id,
-                'text': '\u200B',  # کاراکتر نامرئی
-                'reply_markup': json.dumps({
-                    'remove_keyboard': True
-                })
-            }
-            
-            response = requests.post(url, json=data, timeout=10)
-            return response.json()
-            
-        except Exception as e:
-            _logger.error(f"Error removing keyboard: {str(e)}", exc_info=True)
-            return False
+        return self.send_message(chat_id, '\u200B', reply_markup=json.dumps({'remove_keyboard': True}))
 
-    def send_file(self, chat_id, file_content=None, filename=None, caption=None, parse_mode=None, step=None):
+    def send_file(self, chat_id, file_content, filename, caption=None, parse_mode='HTML'):
         """ارسال انواع فایل به تلگرام"""
-        if step:
-            # روش قدیمی برای ارسال فایل از step
-            if not step.attachment:
-                return False
-            try:
-                # تبدیل فایل باینری به فایل موقت
-                attachment_data = base64.b64decode(step.attachment)
-                mime_type = mimetypes.guess_type(step.attachment_name)[0] or ''
-                
-                # ایجاد دایرکتوری موقت اختصاصی
-                temp_dir = tempfile.mkdtemp()
-                temp_path = os.path.join(temp_dir, step.attachment_name)
-                
-                try:
-                    # ذخیره فایل با نام اصلی
-                    with open(temp_path, 'wb') as temp_file:
-                        temp_file.write(attachment_data)
-                    
-                    # ارسال فایل بر اساس نوع MIME
-                    if mime_type.startswith('image/'):
-                        return self.send_photo(
-                            chat_id=chat_id,
-                            photo=open(temp_path, 'rb'),
-                            caption=caption,
-                            parse_mode='HTML'
-                        )
-                    elif mime_type.startswith('video/'):
-                        return self.send_video(
-                            chat_id=chat_id,
-                            video=open(temp_path, 'rb'),
-                            caption=caption,
-                            parse_mode='HTML',
-                            supports_streaming=True
-                        )
-                    elif mime_type.startswith('audio/'):
-                        return self.send_audio(
-                            chat_id=chat_id,
-                            audio=open(temp_path, 'rb'),
-                            caption=caption,
-                            parse_mode='HTML'
-                        )
-                    else:
-                        # ارسال سایر فایل‌ها به صورت document با حفظ نام اصلی
-                        with open(temp_path, 'rb') as doc_file:
-                            return self.send_document(
-                                chat_id=chat_id,
-                                document=doc_file,
-                                filename=step.attachment_name,
-                                caption=caption,
-                                parse_mode='HTML'
-                            )
-                finally:
-                    # پاک کردن فایل و دایرکتوری موقت
-                    try:
-                        os.unlink(temp_path)
-                        os.rmdir(temp_dir)
-                    except:
-                        pass
-                
-            except Exception as e:
-                _logger.error(f"Error sending file: {str(e)}")
-                return False
-            
-        else:
-            if not file_content:
-                raise ValueError('محتوای فایل خالی است')
-            
-            # تشخیص نوع فایل
-            mime_type = mimetypes.guess_type(filename)[0] if filename else None
-            
-            try:
-                # تبدیل محتوای فایل
-                file_data = base64.b64decode(file_content)
-                
-                # آماده‌سازی پارامترها
-                params = {
-                    'chat_id': chat_id
-                }
-                
-                if caption:
-                    params['caption'] = caption
-                
-                if parse_mode:
-                    params['parse_mode'] = parse_mode
-                
-                # انتخاب متد مناسب
-                if mime_type and mime_type.startswith('image/'):
-                    method = 'sendPhoto'
-                    files = {'photo': (filename, file_data, mime_type)}
-                elif mime_type and mime_type.startswith('video/'):
-                    method = 'sendVideo'
-                    files = {'video': (filename, file_data, mime_type)}
-                elif mime_type and mime_type.startswith('audio/'):
-                    method = 'sendAudio'
-                    files = {'audio': (filename, file_data, mime_type)}
-                else:
-                    method = 'sendDocument'
-                    files = {'document': (filename, file_data, mime_type or 'application/octet-stream')}
-                
-                # ارسال درخواست
-                return self._send_request(method, params=params, files=files)
-                
-            except Exception as e:
-                _logger.error(f"Error sending file: {str(e)}")
-                raise UserError(f"خطا در ارسال فایل: {str(e)}")
+        if not file_content:
+            raise ValueError('محتوای فایل خالی است')
 
-    def send_document(self, chat_id, document, filename=None, caption=None, parse_mode='HTML'):
-        """ارسال سند"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
-        
-        token = self._get_bot_token(bot_id)
-        url = f'https://api.telegram.org/bot{token}/sendDocument'
-        
-        try:
-            # تنظیم فایل برای ارسال با نام اصلی
-            files = {
-                'document': (
-                    filename or (
-                        document.name.split('/')[-1] if hasattr(document, 'name') 
-                        else 'document'
-                    ),
-                    document,
-                    'application/octet-stream'
-                )
-            }
-            
-            data = {
-                'chat_id': chat_id,
-                'parse_mode': parse_mode
-            }
-            
-            if caption:
-                data['caption'] = caption
-            
-            _logger.info(f"Sending document with filename: {filename}")
-            response = requests.post(url, data=data, files=files, timeout=10)
-            response_data = response.json()
-            
-            if not response_data.get('ok'):
-                error_msg = response_data.get('description', 'خطای ناشناخته')
-                _logger.error(f"خطا از تلگرام: {error_msg}")
-                raise UserError(f"خطا از سمت تلگرام: {error_msg}")
-            
-            return response_data
-            
-        except Exception as e:
-            _logger.error(f"خطا در ارسال سند: {str(e)}")
-            raise UserError(f"خطا در ارسال سند: {str(e)}")
+        mime_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+        file_data = base64.b64decode(file_content)
+
+        params = {'chat_id': chat_id}
+        if caption:
+            params['caption'] = caption
+        if parse_mode:
+            params['parse_mode'] = parse_mode
+
+        if mime_type.startswith('image/'):
+            method = 'sendPhoto'
+            files = {'photo': (filename, file_data, mime_type)}
+        elif mime_type.startswith('video/'):
+            method = 'sendVideo'
+            files = {'video': (filename, file_data, mime_type)}
+            params['supports_streaming'] = True
+        elif mime_type.startswith('audio/'):
+            method = 'sendAudio'
+            files = {'audio': (filename, file_data, mime_type)}
+        else:
+            method = 'sendDocument'
+            files = {'document': (filename, file_data, mime_type)}
+
+        return self._send_request(method, params=params, files=files)
 
     def forward_message(self, chat_id, from_chat_id, message_id, disable_notification=None):
         """ارسال پیام فورواردی"""
@@ -873,56 +596,76 @@ class TelegramService(models.AbstractModel):
             _logger.error(f"خطا در ویرایش پیام: {error_msg}")
             return {'ok': False, 'error': error_msg}
 
-    def edit_message_text(self, chat_id, message_id, text, reply_markup=None):
-        """ویرایش متن یک پیام"""
-        bot_id = self.env.context.get('bot_id')
-        if not bot_id:
-            raise UserError('شناسه ربات یافت نشد')
 
-        token = self._get_bot_token(bot_id)
-        url = f'https://api.telegram.org/bot{token}/editMessageText'
+    def process_step(self, step, telegram_info, message=None):
+        """پردازش مرحله"""
+        service = self.with_context(bot_id=telegram_info.bot_id.id)
 
-        payload = {
-            'chat_id': chat_id,
-            'message_id': message_id,
-            'text': text,
-        }
-        if reply_markup:
-            payload['reply_markup'] = json.dumps(reply_markup)
+        if step.message_type == 'text':
+            if step.attachment:
+                return service.send_file(telegram_info.chat_id, step.attachment, step.attachment_name, caption=step.content)
+            else:
+                return service.send_message(telegram_info.chat_id, step.content)
+
+        elif step.message_type == 'forward':
+            return service.process_forward_message(step, telegram_info)
+
+        elif step.message_type == 'save_info':
+            if not message:
+                return service.send_message(telegram_info.chat_id, step.content or 'لطفاً اطلاعات را وارد کنید')
+            else:
+                is_valid, validation_result = step.validate_input(message)
+                if not is_valid:
+                    service.send_message(telegram_info.chat_id, validation_result if isinstance(validation_result, str) else 'خطای نامشخص')
+                    return {'error': validation_result}
+
+                if step.target_model_id and step.target_field_id:
+                    model = self.env[step.target_model_id.model]
+                    record = model.browse(telegram_info.partner_id.id)
+                    record.write({step.target_field_id.name: message})
+
+                return {'success': True}
+
+        # ... (add other message types here)
+
+        return False
+
+    def process_forward_message(self, step, telegram_info):
+        """پردازش پیام فورواردی"""
+        if not step.forward_link:
+            return False
+
+        parts = step.forward_link.split('/')
+        if len(parts) < 2:
+            return False
+
+        channel_name = parts[-2].replace('@', '')
+        message_id = int(parts[-1])
+
+        service = self.with_context(bot_id=telegram_info.bot_id.id)
 
         try:
-            response = requests.post(url, json=payload, timeout=10)
-            response_data = response.json()
+            if step.forward_with_source:
+                result = service.forward_message(telegram_info.chat_id, f"@{channel_name}", message_id)
+            else:
+                result = service.copy_message(telegram_info.chat_id, f"@{channel_name}", message_id)
 
-            self._create_log(
-                bot_id=bot_id,
-                direction='outgoing',
-                request_data=payload,
-                response_data=response_data,
-                status_code=response.status_code,
-                error=None if response_data.get('ok') else response_data.get('description')
-            )
-
-            if not response_data.get('ok'):
-                error_msg = response_data.get('description', 'خطای ناشناخته')
-                _logger.error(f"خطا در ویرایش پیام: {error_msg}")
-
-            return response_data
-
+            if result and step.delete_after:
+                self.env['telegram.message.delete'].create({
+                    'chat_id': telegram_info.chat_id,
+                    'message_id': result['result']['message_id'],
+                    'bot_id': telegram_info.bot_id.id,
+                    'step_id': step.id,
+                    'delete_time': fields.Datetime.now() + timedelta(minutes=step.delete_delay)
+                })
+            return result
         except Exception as e:
-            error_msg = str(e)
-            self._create_log(
-                bot_id=bot_id,
-                direction='outgoing',
-                request_data=payload,
-                response_data=None,
-                status_code=500,
-                error=error_msg
-            )
-            _logger.error(f"خطا در ویرایش پیام: {error_msg}")
-            return {'ok': False, 'error': error_msg}
+            _logger.error(f"خطا در پردازش پیام فورواردی: {str(e)}")
+            if step.content:
+                return service.send_message(telegram_info.chat_id, step.content)
+            return False
 
-    def _send_request(self, method, params=None, files=None):
+    def _send_request(self, method, params=None, files=None, is_json=False):
         """ارسال درخواست به API تلگرام"""
         bot_id = self.env.context.get('bot_id')
         if not bot_id:
@@ -932,10 +675,13 @@ class TelegramService(models.AbstractModel):
         url = f'https://api.telegram.org/bot{token}/{method}'
         
         try:
-            response = requests.post(url, data=params, files=files, timeout=10)
+            if is_json:
+                response = requests.post(url, json=params, timeout=10)
+            else:
+                response = requests.post(url, data=params, files=files, timeout=10)
+
             response_data = response.json()
             
-            # ثبت لاگ
             self._create_log(
                 bot_id=bot_id,
                 direction='outgoing',
@@ -950,11 +696,10 @@ class TelegramService(models.AbstractModel):
                 _logger.error(f"Telegram API error: {error_msg}")
                 raise UserError(f"خطا از سمت تلگرام: {error_msg}")
             
-            return response_data['result']
+            return response_data.get('result')
             
         except Exception as e:
             error_msg = str(e)
-            # ثبت لاگ خطا
             self._create_log(
                 bot_id=bot_id,
                 direction='outgoing',

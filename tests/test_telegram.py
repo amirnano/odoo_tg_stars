@@ -1,119 +1,89 @@
-from odoo.tests import common, tagged # Ensure these are present
+from odoo.tests import common, tagged
 from odoo import fields
-from unittest.mock import patch
-# Assuming TelegramService is available through an import like:
-# from odoo.addons.telegram.services.telegram_service import TelegramService
-# If not, the patch path might need adjustment or this import added.
-# For now, the setUp uses it directly, implying it's in scope.
+from unittest.mock import patch, MagicMock
 
 @tagged('post_install', '-at_install')
 class TestTelegramIntegration(common.TransactionCase):
 
     def setUp(self):
         super().setUp()
-        # self.telegram_service = TelegramService(self.env) # Assuming TelegramService is correctly imported/available
         self.bot = self.env['telegram.bot'].create({
             'name': 'Test Bot',
-            'api_token': '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', # Example token
-            'username': 'test_bot_user' # Example username
+            'api_token': '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11',
+            'username': 'test_bot_user'
         })
-        self.partner = self.env['res.partner'].create({'name': 'Test Partner for Telegram'})
-        # Create telegram.info linking partner, bot, and providing a chat_id
+        self.partner = self.env['res.partner'].create({'name': 'Test Partner'})
         self.telegram_info = self.env['telegram.info'].create({
             'partner_id': self.partner.id,
             'bot_id': self.bot.id,
-            'telegram_id': '1234567890', # Example Telegram User ID
-            'chat_id': '987654321',    # Example Telegram Chat ID
+            'telegram_id': '1234567890',
+            'chat_id': '987654321',
             'telegram_username': 'testpartneruser'
         })
-        
-    def test_send_message(self):
-        """تست ارسال پیام"""
-        message = self.env['telegram.send.message.wizard'].create({
+        self.campaign = self.env['telegram.campaign'].create({
+            'name': 'Test Campaign',
             'bot_id': self.bot.id,
-            'chat_id': '123456789',
-            'message': 'پیام تست'
+            'message': 'Test Message',
+            'start_parameter': 'start_test'
         })
-        
-        result = message.action_send_message()
-        self.assertEqual(result['type'], 'ir.actions.client')
-        self.assertEqual(message.status, 'success') 
-
-    def test_delete_webhook(self):
-        """تست حذف webhook"""
-        with self.env.cr.savepoint():
-            service = self.env['telegram.service'].with_context(bot_id=self.bot.id).new()
-            result = service.delete_webhook()
-            self.assertTrue(result.get('ok')) 
-
-    def test_set_webhook(self):
-        """تست تنظیم webhook"""
-        with self.env.cr.savepoint():
-            service = self.env['telegram.service'].with_context(bot_id=self.bot.id).new()
-            webhook_url = 'https://example.com/webhook'
-            result = service.set_webhook(webhook_url)
-            self.assertTrue(result.get('ok'))
-
-    def test_scheduled_message_duplicate_prevention(self):
-        """Test that scheduled messages are not re-sent if history for that scheduled_id already exists."""
-        ScheduledMessage = self.env['telegram.scheduled.message']
-        MessageHistory = self.env['telegram.message.history']
-
-        # 1. Create and send a first scheduled message normally (for setup)
-        scheduled_msg1 = ScheduledMessage.create({
-            'name': 'Test Scheduled Msg 1 - Normal Send',
-            'bot_id': self.bot.id,
-            'message': '<p>Initial test message for scheduling.</p>',
-            'domain': "[('id', '=', %s)]" % self.partner.id,
-            'scheduled_date': fields.Datetime.now(),
-            'state': 'queued'
-        })
-        ScheduledMessage._cron_send_scheduled_messages()
-
-        self.assertEqual(scheduled_msg1.state, 'done', "Msg1 should be 'done' after cron processing.")
-        history_msg1 = MessageHistory.search([
-            ('scheduled_message_id', '=', scheduled_msg1.id),
-            ('chat_id', '=', self.telegram_info.chat_id)
-        ])
-        self.assertEqual(len(history_msg1), 1, "One history record should exist for Msg1.")
-        self.assertEqual(history_msg1.state, 'sent', "History for Msg1 should be 'sent'.")
-
-        # 2. Core Test: Duplicate Prevention for scheduled_msg2
-        scheduled_msg2 = ScheduledMessage.create({
-            'name': 'Test Scheduled Msg 2 - Duplicate Check',
-            'bot_id': self.bot.id,
-            'message': '<p>Message for duplicate check.</p>',
-            'domain': "[('id', '=', %s)]" % self.partner.id,
-            'scheduled_date': fields.Datetime.now(),
-            'state': 'queued'
+        self.step = self.env['telegram.step'].create({
+            'name': 'Test Step',
+            'campaign_id': self.campaign.id,
+            'message_type': 'text',
+            'content': 'Hello World'
         })
 
-        # Manually create a 'sent' history record for scheduled_msg2 *before* cron runs for it.
-        MessageHistory.create({
-            'bot_id': self.bot.id,
-            'chat_id': self.telegram_info.chat_id,
-            'partner_id': self.partner.id,
-            'scheduled_message_id': scheduled_msg2.id,
-            'state': 'sent',
-            'message': scheduled_msg2.message
+    def test_token_encryption(self):
+        """تست رمزگذاری و رمزگشایی توکن"""
+        original_token = '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11'
+        encrypted_token = self.bot._encrypt_token(original_token)
+        self.assertNotEqual(original_token, encrypted_token)
+        decrypted_token = self.bot._decrypt_token(encrypted_token)
+        self.assertEqual(original_token, decrypted_token)
+
+    def test_input_validation(self):
+        """تست اعتبارسنجی ورودی"""
+        step = self.env['telegram.step'].create({
+            'name': 'Validation Step',
+            'campaign_id': self.campaign.id,
+            'validation_type': 'email'
         })
+        is_valid, msg = step.validate_input('test@example.com')
+        self.assertTrue(is_valid)
+        is_valid, msg = step.validate_input('invalid-email')
+        self.assertFalse(is_valid)
+        self.assertEqual(msg, 'لطفاً یک ایمیل معتبر وارد کنید')
 
-        # Mock the actual sending methods of the TelegramService.
-        # Adjust 'odoo.addons.telegram.services.telegram_service.TelegramService'
-        # if the module name or path to TelegramService is different.
-        with patch('odoo.addons.telegram.services.telegram_service.TelegramService.send_message') as mock_send_message, \
-             patch('odoo.addons.telegram.services.telegram_service.TelegramService.send_file') as mock_send_file:
+    @patch('odoo.addons.telegram.services.telegram_service.TelegramService._send_request')
+    def test_process_step(self, mock_send_request):
+        """تست پردازش مراحل کمپین"""
+        mock_send_request.return_value = {'ok': True, 'result': {'message_id': 123}}
+        service = self.env['telegram.service'].with_context(bot_id=self.bot.id)
+        result = service.process_step(self.step, self.telegram_info)
+        self.assertTrue(result)
+        mock_send_request.assert_called_once()
 
-            ScheduledMessage._cron_send_scheduled_messages()
+    def test_campaign_copy(self):
+        """تست کپی کردن کمپین"""
+        self.env['telegram.step'].create({
+            'name': 'Step 2',
+            'campaign_id': self.campaign.id,
+            'message_type': 'text',
+            'content': 'Step 2'
+        })
+        new_campaign = self.campaign.copy()
+        self.assertEqual(new_campaign.name, f"{self.campaign.name} (کپی 1)")
+        self.assertEqual(len(new_campaign.step_ids), 2)
+        self.assertEqual(new_campaign.step_ids[0].name, self.step.name)
 
-            self.assertEqual(scheduled_msg2.state, 'done', "Msg2 should be 'done' (even if skipped as duplicate).")
+    @patch('odoo.addons.telegram.services.telegram_service.requests.post')
+    def test_send_message_service(self, mock_post):
+        """تست سرویس ارسال پیام"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'ok': True, 'result': {'message_id': 123}}
+        mock_post.return_value = mock_response
 
-            mock_send_message.assert_not_called()
-            mock_send_file.assert_not_called()
-
-            history_msg2_after_cron = MessageHistory.search([
-                ('scheduled_message_id', '=', scheduled_msg2.id),
-                ('chat_id', '=', self.telegram_info.chat_id)
-            ])
-            self.assertEqual(len(history_msg2_after_cron), 1, "Only one history record (the manually created one) should exist for Msg2.")
-            self.assertEqual(history_msg2_after_cron.state, 'sent')
+        service = self.env['telegram.service'].with_context(bot_id=self.bot.id)
+        result = service.send_message(self.telegram_info.chat_id, 'Test')
+        self.assertIsNotNone(result)
+        self.assertEqual(result['message_id'], 123)

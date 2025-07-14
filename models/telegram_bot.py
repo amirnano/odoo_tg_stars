@@ -52,9 +52,13 @@ class TelegramBot(models.Model):
     @api.constrains('api_token')
     def _check_api_token(self):
         for record in self:
-            decrypted_token = self._decrypt_token(record.api_token)
-            if not re.match(r'^\d+:[\w-]+$', decrypted_token):
-                raise ValidationError('فرمت توکن API نامعتبر است')
+            if record.api_token:
+                try:
+                    decrypted_token = self._decrypt_token(record.api_token)
+                    if not re.match(r'^\d+:[\w-]+$', decrypted_token):
+                        raise ValidationError('فرمت توکن API نامعتبر است')
+                except Exception:
+                    raise ValidationError('توکن API رمزگذاری شده معتبر نیست')
             
     @api.depends('api_token')
     def _compute_webhook_url(self):
