@@ -776,6 +776,54 @@ class TelegramService(models.AbstractModel):
             _logger.error(f"خطا در کپی پیام: {str(e)}")
             raise UserError(f"خطا در کپی پیام: {str(e)}")
 
+    def edit_message_text(self, chat_id, message_id, text, reply_markup=None):
+        """ویرایش متن یک پیام"""
+        bot_id = self.env.context.get('bot_id')
+        if not bot_id:
+            raise UserError('شناسه ربات یافت نشد')
+
+        token = self._get_bot_token(bot_id)
+        url = f'https://api.telegram.org/bot{token}/editMessageText'
+
+        payload = {
+            'chat_id': chat_id,
+            'message_id': message_id,
+            'text': text,
+            'reply_markup': reply_markup
+        }
+
+        try:
+            response = requests.post(url, json=payload, timeout=10)
+            response_data = response.json()
+
+            self._create_log(
+                bot_id=bot_id,
+                direction='outgoing',
+                request_data=payload,
+                response_data=response_data,
+                status_code=response.status_code,
+                error=None if response_data.get('ok') else response_data.get('description')
+            )
+
+            if not response_data.get('ok'):
+                error_msg = response_data.get('description', 'خطای ناشناخته')
+                _logger.error(f"خطا در ویرایش پیام: {error_msg}")
+
+            return response_data
+
+        except Exception as e:
+            error_msg = str(e)
+            self._create_log(
+                bot_id=bot_id,
+                direction='outgoing',
+                request_data=payload,
+                response_data=None,
+                status_code=500,
+                error=error_msg
+            )
+            _logger.error(f"خطا در ویرایش پیام: {error_msg}")
+            return {'ok': False, 'error': error_msg}
+
     def _send_request(self, method, params=None, files=None):
         """ارسال درخواست به API تلگرام"""
         bot_id = self.env.context.get('bot_id')

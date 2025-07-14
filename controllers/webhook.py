@@ -296,7 +296,7 @@ class WebhookController(http.Controller):
                             message='لطفاً شماره تماس خود را به اشتراک بگذارید'
                         )
                         return Response(status=200)
-                else:
+                elif text:
                     # پردازش پیام متنی
                     participant.process_step(
                         participant.current_step_id,
