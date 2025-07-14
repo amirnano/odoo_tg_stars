@@ -248,7 +248,8 @@ class WebhookController(http.Controller):
             
             # پردازش پیام‌های عادی
             participant = request.env['telegram.campaign.participant'].sudo().search([
-                ('telegram_info_id', '=', telegram_info.id)
+                ('telegram_info_id', '=', telegram_info.id),
+                ('state', '=', 'active')
             ], order='last_start_date desc', limit=1)
 
             if participant and participant.current_step_id:
@@ -304,12 +305,13 @@ class WebhookController(http.Controller):
                     )
                     return Response(status=200)
             
-            # اگر هیچ یک از موارد بالا نبود، پیام نامعتبر است
-            service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
-            service.send_message(
-                chat_id=chat_id,
-                message='درخواست شما نامعتبر است.'
-            )
+            if not (text and text.startswith('/start')):
+                # اگر هیچ یک از موارد بالا نبود، پیام نامعتبر است
+                service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
+                service.send_message(
+                    chat_id=chat_id,
+                    message='درخواست شما نامعتبر است.'
+                )
             return Response(status=200)
 
         except Exception as e:
