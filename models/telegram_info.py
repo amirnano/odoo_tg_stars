@@ -60,13 +60,10 @@ class TelegramInfo(models.Model):
             # ارسال پیام های خوانده نشده
             steps_to_send = self.env['telegram.step']
             for step in campaign.step_ids.sorted(lambda s: s.sequence):
-                if step.message_type in ['text', 'forward']:
+                if not participant.is_step_completed(step):
                     steps_to_send |= step
-                else:
-                    if not participant.is_step_completed(step):
-                        steps_to_send |= step
-                        if step.message_type not in ['text', 'forward']:
-                            break
+                    if step.message_type not in ['text', 'forward']:
+                        break
 
             for step in steps_to_send:
                 participant.process_step(step)

@@ -255,63 +255,41 @@ class WebhookController(http.Controller):
             if participant and participant.current_step_id:
                 current_step = participant.current_step_id
                 if current_step.message_type == 'payment':
-                    # اگر نوع پیام پرداختی است، منتظر پاسخ پرداخت می‌مانیم و کاری انجام نمی‌دهیم
                     return Response(status=200)
 
                 if contact:
-                    # اگر مخاطب به اشتراک گذاشته شده
                     phone = contact.get('phone_number')
                     contact_user_id = contact.get('user_id')
-                    
-                    # بررسی اینکه آیا شماره متعلق به خود کاربر است
                     if str(contact_user_id) != str(telegram_id):
                         service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
-                        service.send_message(
-                            chat_id=str(chat_id),
-                            message='لطفاً شماره تماس خود را به اشتراک بگذارید'
-                        )
+                        service.send_message(chat_id=str(chat_id), message='لطفاً شماره تماس خود را به اشتراک بگذارید')
                         return Response(status=200)
                     
-                    if phone and participant.current_step_id:
-                        contact_data = {
-                            'phone_number': phone,
-                            'user_id': telegram_id
-                        }
-                        
-                        # پردازش شماره تماس
-                        participant.process_step(
-                            participant.current_step_id,
-                            contact_data
-                        )
-                        
-                        # حذف کیبورد با ارسال یک کیبورد خالی
+                    if phone:
+                        participant.process_step(current_step, contact)
                         service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
                         service.remove_keyboard(chat_id)
-                        
-                        return Response(status=200)
-                        
-                    else:
-                        service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
-                        service.send_message(
-                            chat_id=str(chat_id),
-                            message='لطفاً شماره تماس خود را به اشتراک بگذارید'
-                        )
-                        return Response(status=200)
                 elif text:
-                    # پردازش پیام متنی
-                    participant.process_step(
-                        participant.current_step_id,
-                        text
-                    )
-                    return Response(status=200)
-            
+                    participant.process_step(current_step, text)
+
+                # After processing, get the next steps to send
+                next_steps_to_send = []
+                next_step = participant._get_next_step(participant.current_step_id)
+                while next_step and next_step.message_type in ['text', 'forward']:
+                    next_steps_to_send.append(next_step)
+                    next_step = participant._get_next_step(next_step)
+
+                if next_step and next_step.message_type not in ['text', 'forward']:
+                    next_steps_to_send.append(next_step)
+
+                for step_to_send in next_steps_to_send:
+                    participant.process_step(step_to_send)
+
+                return Response(status=200)
+
             if not (text and text.startswith('/start')):
-                # اگر هیچ یک از موارد بالا نبود، پیام نامعتبر است
                 service = request.env['telegram.service'].sudo().with_context(bot_id=bot.id).new()
-                service.send_message(
-                    chat_id=chat_id,
-                    message='درخواست شما نامعتبر است.'
-                )
+                service.send_message(chat_id=chat_id, message='درخواست شما نامعتبر است.')
             return Response(status=200)
 
         except Exception as e:

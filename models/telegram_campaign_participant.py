@@ -146,6 +146,13 @@ class TelegramCampaignParticipant(models.Model):
     def is_step_completed(self, step):
         """بررسی اینکه آیا مرحله تکمیل شده است"""
         self.ensure_one()
+        if step.message_type == 'payment':
+            payment = self.env['telegram.payment'].search([
+                ('telegram_info_id', '=', self.telegram_info_id.id),
+                ('step_id', '=', step.id),
+                ('state', '=', 'paid')
+            ], limit=1)
+            return bool(payment)
         if step.target_model_id and step.target_field_id:
             field_key = f"{step.target_model_id.model}.{step.target_field_id.name}"
             return field_key in (self.completed_fields or "")
@@ -204,7 +211,7 @@ class TelegramCampaignParticipant(models.Model):
                     # ثبت برای حذف خودکار
                     self.env['telegram.message.delete'].create({
                         'chat_id': self.chat_id,
-                        'message_id': result['result']['message_id'],
+                        'message_id': result.get('result', {}).get('message_id'),
                         'bot_id': self.bot_id.id,
                         'step_id': step.id,
                         'delete_time': fields.Datetime.now() + timedelta(minutes=step.delete_delay)
