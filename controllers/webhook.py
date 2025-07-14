@@ -252,7 +252,7 @@ class WebhookController(http.Controller):
                 ('state', '=', 'active')
             ], order='last_start_date desc', limit=1)
 
-            if participant and participant.current_step_id:
+            if participant and participant.current_step_id and (text or contact):
                 current_step = participant.current_step_id
                 if current_step.message_type == 'payment':
                     return Response(status=200)
