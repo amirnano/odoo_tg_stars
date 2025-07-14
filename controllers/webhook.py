@@ -257,6 +257,7 @@ class WebhookController(http.Controller):
                 if current_step.message_type == 'payment':
                     return Response(status=200)
 
+                result = {}
                 if contact:
                     phone = contact.get('phone_number')
                     contact_user_id = contact.get('user_id')

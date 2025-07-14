@@ -187,39 +187,43 @@ class TelegramCampaignParticipant(models.Model):
                 bot_id=self.bot_id.id
             ).new()
 
-            if step.forward_with_source:
-                result = service.forward_message(
-                    chat_id=self.chat_id,
-                    from_chat_id=f"@{channel_name}",
-                    message_id=message_id
-                )
-            else:
-                result = service.copy_message(
-                    chat_id=self.chat_id,
-                    from_chat_id=f"@{channel_name}",
-                    message_id=message_id
-                )
+            try:
+                if step.forward_with_source:
+                    result = service.forward_message(
+                        chat_id=self.chat_id,
+                        from_chat_id=f"@{channel_name}",
+                        message_id=message_id
+                    )
+                else:
+                    result = service.copy_message(
+                        chat_id=self.chat_id,
+                        from_chat_id=f"@{channel_name}",
+                        message_id=message_id
+                    )
 
-            _logger.info(f"Forward result: {result}")
+                _logger.info(f"Forward result: {result}")
 
-            if result and result.get('ok') and step.delete_after:
-                self.env['telegram.message.delete'].create({
-                    'chat_id': self.chat_id,
-                    'message_id': result.get('result', {}).get('message_id'),
-                    'bot_id': self.bot_id.id,
-                    'step_id': step.id,
-                    'delete_time': fields.Datetime.now() + timedelta(minutes=step.delete_delay)
-                })
+                if result and result.get('ok') and step.delete_after:
+                    self.env['telegram.message.delete'].create({
+                        'chat_id': self.chat_id,
+                        'message_id': result.get('result', {}).get('message_id'),
+                        'bot_id': self.bot_id.id,
+                        'step_id': step.id,
+                        'delete_time': self.env.cr.now() + timedelta(minutes=step.delete_delay)
+                    })
 
-            return {'success': True}
+                return {'success': True}
+            except Exception as e:
+                _logger.error(f"خطا در پردازش پیام فورواردی: {str(e)}")
+                if step.content:
+                    service.send_message(
+                        chat_id=self.chat_id,
+                        message=step.content
+                    )
+                return {'success': False, 'error': str(e)}
 
         except Exception as e:
             _logger.error(f"خطا در پردازش پیام فورواردی: {str(e)}")
-            if step.content:
-                service.send_message(
-                    chat_id=self.chat_id,
-                    message=step.content
-                )
             return {'success': False, 'error': str(e)}
 
     def _add_completed_field(self, field_name):
